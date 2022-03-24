@@ -1,6 +1,11 @@
 import numpy as np
+from torch.utils.data.dataset import T_co
 from torchvision import datasets, transforms
 from utils.toolkit import split_images_labels
+from torch.utils.data import Dataset
+from torchvision.io import read_image
+import os
+
 
 
 class iData(object):
@@ -8,6 +13,26 @@ class iData(object):
     test_trsf = []
     common_trsf = []
     class_order = None
+
+
+class iLogoDet3K(iData):
+
+    use_path = False
+    train_trsf = []
+    test_trsf = []
+    common_trsf = []
+
+    class_order = iLogoDet3K.init_class_loader()
+
+    @staticmethod
+    def init_class_loader():
+        return np.arange(10).tolist()
+
+    def download_data(self):
+        train_dataset = datasets.cifar.CIFAR100('./data', train=True, download=True)
+        test_dataset = datasets.cifar.CIFAR100('./data', train=False, download=True)
+        self.train_data, self.train_targets = train_dataset.data, np.array(train_dataset.targets)
+        self.test_data, self.test_targets = test_dataset.data, np.array(test_dataset.targets)
 
 
 class iCIFAR10(iData):

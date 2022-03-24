@@ -32,7 +32,6 @@ def _train(args):
     )
 
     _set_random()
-    _set_device(args)
     print_args(args)
     data_manager = DataManager(args['dataset'], args['shuffle'], args['seed'], args['init_cls'], args['increment'])
     model = factory.get_model(args['model_name'], args)
@@ -72,17 +71,8 @@ def _train(args):
 
 def _set_device(args):
     device_type = args['device']
-    gpus = []
-
-    for device in device_type:
-        if device_type == -1:
-            device = torch.device('cpu')
-        else:
-            device = torch.device('cuda:{}'.format(device))
-
-        gpus.append(device)
-
-    args['device'] = gpus
+    if device_type != -1:
+        args['device'] = [torch.device(f'cuda:{device}') for device in device_type]
 
 
 def _set_random():
