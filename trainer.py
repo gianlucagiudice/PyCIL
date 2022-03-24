@@ -9,8 +9,10 @@ from utils.toolkit import count_parameters
 
 def train(args):
     seed_list = copy.deepcopy(args['seed'])
-    device = copy.deepcopy(args['device'])
-
+    try:
+        device = copy.deepcopy(args['device'])
+    except KeyError:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
     for seed in seed_list:
         args['seed'] = seed
         args['device'] = device
