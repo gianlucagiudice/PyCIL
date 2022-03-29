@@ -28,6 +28,12 @@ weight_decay=2e-4
 num_workers=8
 T=2
 
+# TODO: Change hyper-parameters
+init_epoch=100
+init_milestones=[50,75]
+epochs = 50
+milestones = [40]
+
 
 class DER(BaseLearner):
 
