@@ -244,6 +244,11 @@ class BaseLearner(object):
             vectors = (vectors.T / (np.linalg.norm(vectors.T, axis=0) + EPSILON)).T
             class_mean = np.mean(vectors, axis=0)
 
+            old_m = m
+            m = min(len(targets), m)
+            if m < old_m:
+                logging.info('Warning! Not enough example for new class. {} examples will be used'.format(m))
+
             # Select
             selected_exemplars = []
             exemplar_vectors = []
