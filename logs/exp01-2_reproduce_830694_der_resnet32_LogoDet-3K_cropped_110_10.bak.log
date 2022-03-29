@@ -1,0 +1,35 @@
+2022-03-29 11:14:42,750 [trainer.py] => config: ../CIL_LogoDet-3K_oracle.json
+2022-03-29 11:14:42,750 [trainer.py] => prefix: reproduce
+2022-03-29 11:14:42,750 [trainer.py] => dataset: LogoDet-3K_cropped
+2022-03-29 11:14:42,750 [trainer.py] => memory_size: 2000
+2022-03-29 11:14:42,750 [trainer.py] => memory_per_class: 100
+2022-03-29 11:14:42,750 [trainer.py] => fixed_memory: True
+2022-03-29 11:14:42,750 [trainer.py] => shuffle: True
+2022-03-29 11:14:42,750 [trainer.py] => init_cls: 110
+2022-03-29 11:14:42,750 [trainer.py] => increment: 10
+2022-03-29 11:14:42,750 [trainer.py] => model_name: der
+2022-03-29 11:14:42,750 [trainer.py] => convnet_type: resnet32
+2022-03-29 11:14:42,750 [trainer.py] => seed: 830694
+2022-03-29 11:14:42,750 [trainer.py] => device: cpu
+2022-03-29 11:14:45,641 [data_manager.py] => [80, 93, 68, 60, 19, 90, 15, 21, 94, 91, 83, 75, 37, 108, 89, 5, 54, 27, 104, 64, 6, 13, 114, 87, 43, 31, 100, 78, 1, 101, 105, 51, 71, 92, 4, 116, 14, 70, 24, 0, 112, 9, 67, 46, 32, 84, 18, 95, 44, 28, 115, 17, 62, 74, 41, 98, 22, 76, 12, 57, 8, 33, 111, 25, 52, 26, 120, 117, 30, 42, 47, 34, 107, 23, 50, 49, 72, 11, 79, 59, 16, 118, 29, 88, 77, 119, 82, 45, 109, 69, 103, 110, 2, 61, 86, 39, 48, 85, 40, 63, 96, 20, 56, 53, 102, 113, 99, 7, 3, 73, 55, 81, 65, 38, 10, 58, 36, 97, 66, 35, 106]
+2022-03-29 11:14:45,696 [trainer.py] => All params: 0
+2022-03-29 11:14:45,696 [trainer.py] => Trainable params: 0
+2022-03-29 11:14:45,726 [der.py] => Learning on 0-110
+2022-03-29 11:14:45,726 [der.py] => All params: 478519
+2022-03-29 11:14:45,727 [der.py] => Trainable params: 478519
+2022-03-29 15:08:03,493 [der.py] => Task 0, Epoch 100/100 => Loss 0.007, Train_accy 100.00
+2022-03-29 15:08:03,498 [der.py] => Task 0, Accuracy train history => [0.18, 9.01, 14.15, 16.54, 16.91, 15.07, 17.65, 17.83, 17.83, 15.07, 17.1, 17.65, 18.01, 17.83, 18.2, 17.83, 18.2, 18.2, 18.01, 18.2]
+2022-03-29 15:08:03,500 [base.py] => Constructing exemplars for new classes...(100 per classes)
+2022-03-29 15:08:09,775 [base.py] => Warning! Not enough example for new class. 25 examples will be used
+2022-03-29 15:08:56,748 [base.py] => Warning! Not enough example for new class. 19 examples will be used
+2022-03-29 15:09:08,793 [base.py] => Warning! Not enough example for new class. 9 examples will be used
+2022-03-29 15:09:20,746 [base.py] => Warning! Not enough example for new class. 5 examples will be used
+2022-03-29 15:11:20,160 [base.py] => Warning! Not enough example for new class. 4 examples will be used
+2022-03-29 15:17:17,538 [base.py] => Warning! Not enough example for new class. 1 examples will be used
+2022-03-29 15:34:33,369 [der.py] => Exemplar size: 322
+2022-03-29 15:34:33,371 [trainer.py] => CNN: {'total': 18.2, '00-09': 0.0, '10-19': 4.48, '20-29': 57.35, '30-39': 38.3, '40-49': 10.53, '50-59': 12.5, '60-69': 20.51, '70-79': 5.13, '80-89': 0.0, '90-99': 10.53, '100-109': 24.0, 'old': 0, 'new': 18.2}
+2022-03-29 15:34:33,371 [trainer.py] => NME: {'total': 17.83, '00-09': 0.0, '10-19': 5.97, '20-29': 54.41, '30-39': 38.3, '40-49': 7.89, '50-59': 12.5, '60-69': 20.51, '70-79': 5.13, '80-89': 0.0, '90-99': 10.53, '100-109': 24.0, 'old': 0, 'new': 17.83}
+2022-03-29 15:34:33,371 [trainer.py] => CNN top1 curve: [18.2]
+2022-03-29 15:34:33,371 [trainer.py] => CNN top5 curve: [23.35]
+2022-03-29 15:34:33,371 [trainer.py] => NME top1 curve: [17.83]
+2022-03-29 15:34:33,372 [trainer.py] => NME top5 curve: [22.98]
