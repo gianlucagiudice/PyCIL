@@ -1,3 +1,4 @@
+import pickle
 import sys
 import logging
 import copy
@@ -5,6 +6,7 @@ import torch
 from utils import factory
 from utils.data_manager import DataManager
 from utils.toolkit import count_parameters
+import multiprocessing
 
 
 def train(args):
@@ -13,6 +15,8 @@ def train(args):
         device = copy.deepcopy(args['device'])
     except KeyError:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if device == 'cpu':
+        torch.set_num_threads(multiprocessing.cpu_count())
     for seed in seed_list:
         args['seed'] = seed
         args['device'] = device
@@ -67,6 +71,18 @@ def _train(args):
 
             logging.info('CNN top1 curve: {}'.format(cnn_curve['top1']))
             logging.info('CNN top5 curve: {}\n'.format(cnn_curve['top5']))
+
+    # Dump training history
+    logging.info('Dumping training hitsory . . .')
+    filename = 'logs/{}_{}_{}_{}_{}_{}_{}_training-history.pickle'.format(
+        args['prefix'], args['seed'], args['model_name'], args['convnet_type'],
+        args['dataset'], args['init_cls'], args['increment'])
+
+    with open(filename, 'wb') as handle:
+        pickle.dump(model._training_history, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open(filename, 'rb') as handle:
+        _ = pickle.load(handle)
 
 
 def _set_device(args):
