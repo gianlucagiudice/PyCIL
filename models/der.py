@@ -34,6 +34,7 @@ class DER(BaseLearner):
     def __init__(self, args):
         super().__init__(args)
         self._network = DERNet(args['convnet_type'], False)
+        self._training_history = dict()
 
     def after_task(self):
         self._known_classes = self._total_classes
@@ -66,6 +67,7 @@ class DER(BaseLearner):
         self.build_rehearsal_memory(data_manager, self.samples_per_class)
         if len(self._multiple_gpus) > 1:
             self._network = self._network.module
+
     def train(self):
         self._network.train()
         self._network.module.convnets[-1].train()
@@ -88,8 +90,8 @@ class DER(BaseLearner):
             else:
                 self._network.weight_align(self._total_classes-self._known_classes)
 
-            
     def _init_train(self,train_loader,test_loader,optimizer,scheduler):
+        test_acc_list = []
         prog_bar = tqdm(range(init_epoch))
         for _, epoch in enumerate(prog_bar):
             self.train()
@@ -113,19 +115,22 @@ class DER(BaseLearner):
             train_acc = np.around(tensor2numpy(correct)*100 / total, decimals=2)
 
             if epoch%5==0:
-                info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}'.format(
-                self._cur_task, epoch+1, init_epoch, losses/len(train_loader), train_acc)
-            else:
                 test_acc = self._compute_accuracy(self._network, test_loader)
                 info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Test_accy {:.2f}'.format(
-                self._cur_task, epoch+1, init_epoch, losses/len(train_loader), train_acc, test_acc)
+                    self._cur_task, epoch+1, init_epoch, losses/len(train_loader), train_acc, test_acc)
+                test_acc_list.append(test_acc)
+            else:
+                info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}'.format(
+                    self._cur_task, epoch+1, init_epoch, losses/len(train_loader), train_acc)
             prog_bar.set_description(info)
 
+        self._training_history[self._cur_task] = test_acc_list
         logging.info(info)
-
+        logging.info(f'Task {self._cur_task}, Accuracy train history => {test_acc_list}')
 
 
     def _update_representation(self, train_loader, test_loader, optimizer, scheduler):
+        test_acc_list = []
         prog_bar = tqdm(range(epochs))
         for _, epoch in enumerate(prog_bar):
             self.train()
@@ -160,8 +165,12 @@ class DER(BaseLearner):
                 test_acc = self._compute_accuracy(self._network, test_loader)
                 info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Loss_clf {:.3f}, Loss_aux {:.3f}, Train_accy {:.2f}, Test_accy {:.2f}'.format(
                 self._cur_task, epoch+1, epochs, losses/len(train_loader),losses_clf/len(train_loader),losses_aux/len(train_loader), train_acc, test_acc)
+                test_acc_list.append(test_acc)
             else:
                 info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Loss_clf {:.3f}, Loss_aux {:.3f}, Train_accy {:.2f}'.format(
                 self._cur_task, epoch+1, epochs, losses/len(train_loader), losses_clf/len(train_loader),losses_aux/len(train_loader),train_acc)
             prog_bar.set_description(info)
+
+        self._training_history[self._cur_task] = test_acc_list
         logging.info(info)
+        logging.info(f'Task {self._cur_task}, Accuracy train history => {test_acc_list}')
