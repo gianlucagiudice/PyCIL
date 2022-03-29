@@ -1,11 +1,15 @@
+import shutil
+
 import numpy as np
-from torch.utils.data.dataset import T_co
+import tqdm
 from torchvision import datasets, transforms
 from utils.toolkit import split_images_labels
-from torch.utils.data import Dataset
-from torchvision.io import read_image
 import os
 
+
+import pandas as pd
+from config import METADATA_CROPPED_IMAGE_PATH, DATASET_PATH, LOGODET_3K_NORMAL_PATH, LOGODET_3K_SMALL_PATH
+from pathlib import Path
 
 
 class iData(object):
@@ -15,24 +19,90 @@ class iData(object):
     class_order = None
 
 
-class iLogoDet3K(iData):
+def init_class_cropped_logodet3k(dataset_dir):
+    df = read_df_cropped_logodet3k(dataset_dir)
+    n_classes = df['brand'].unique().size
+    print(f'The total number of classes is  {n_classes}')
+    return np.arange(n_classes).tolist()
 
-    use_path = False
+
+def read_instances(split, dataset_dir, prefix='../'):
+    with open(prefix / Path(DATASET_PATH) / dataset_dir / split) as file:
+        return [Path(x.strip()) for x in file.readlines()]
+
+
+def read_df_cropped_logodet3k(dataset_dir, root=f'../{DATASET_PATH}'):
+    df = pd.read_pickle(Path(root) / dataset_dir / METADATA_CROPPED_IMAGE_PATH)
+
+    train = read_instances('train.txt', dataset_dir)
+    validation = read_instances('validation.txt', dataset_dir)
+    test = read_instances('test.txt', dataset_dir)
+
+    all_instances = [Path(x.name) for x in train + validation + test]
+
+    return df[df['new_path'].isin(all_instances)]
+
+
+class iLogoDet3K(iData):
+    use_path = True
+
     train_trsf = []
     test_trsf = []
-    common_trsf = []
 
-    class_order = iLogoDet3K.init_class_loader()
+    common_trsf = [
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+    ]
 
-    @staticmethod
-    def init_class_loader():
-        return np.arange(10).tolist()
+    class_order = None
+
+    DATASET_PATH = LOGODET_3K_NORMAL_PATH
 
     def download_data(self):
-        train_dataset = datasets.cifar.CIFAR100('./data', train=True, download=True)
-        test_dataset = datasets.cifar.CIFAR100('./data', train=False, download=True)
-        self.train_data, self.train_targets = train_dataset.data, np.array(train_dataset.targets)
-        self.test_data, self.test_targets = test_dataset.data, np.array(test_dataset.targets)
+        self.df_cropped = read_df_cropped_logodet3k(iLogoDet3K.DATASET_PATH)
+        self.train_instances = read_instances('train.txt', iLogoDet3K.DATASET_PATH)
+        self.validation_instances = read_instances('validation.txt', iLogoDet3K.DATASET_PATH)
+        self.test_instances = read_instances('test.txt', iLogoDet3K.DATASET_PATH)
+
+        iLogoDet3K.class_order = np.arange(self.df_cropped['brand'].unique().size).tolist()
+
+        # Class to index
+        self.classes = self.df_cropped['brand'].unique()
+        self.class_to_idx = {b: i for i, b in enumerate(self.classes)}
+        print(f'Class to idx len: {len(self.class_to_idx.keys())}')
+
+        # Split df
+        train_instances = [Path(x.name) for x in self.train_instances + self.validation_instances]
+        train_df = self.df_cropped[self.df_cropped['new_path'].isin(train_instances)]
+
+        test_instances = [Path(x.name) for x in self.test_instances]
+        test_df = self.df_cropped[self.df_cropped['new_path'].isin(test_instances)]
+
+        train_dir = f'../dataset/{iLogoDet3K.DATASET_PATH}/train/'
+        test_dir = f'../dataset/{iLogoDet3K.DATASET_PATH}/val/'
+        os.makedirs(train_dir,  exist_ok=True)
+        os.makedirs(test_dir, exist_ok=True)
+
+        # Copy train images
+        self.copy_images(train_df, 'train')
+        # Copy test images
+        self.copy_images(test_df, 'val')
+
+
+        train_dset = datasets.ImageFolder(train_dir)
+        test_dset = datasets.ImageFolder(test_dir)
+
+        self.train_data, self.train_targets = split_images_labels(train_dset.imgs)
+        self.test_data, self.test_targets = split_images_labels(test_dset.imgs)
+
+    def copy_images(self, dataframe, split):
+        for _, row in tqdm.tqdm(dataframe.iterrows(), total=len(dataframe)):
+            os.makedirs(f'../dataset/{iLogoDet3K.DATASET_PATH}/{split}/{self.class_to_idx[row[4]]}', exist_ok=True)
+            src = f'../dataset/{iLogoDet3K.DATASET_PATH}/cropped/{str(row[0])}'
+            dst = f'../dataset/{iLogoDet3K.DATASET_PATH}/{split}/{self.class_to_idx[row[4]]}/{str(row[0])}'
+
+            if not os.path.exists(dst):
+                shutil.copy(src, dst)
 
 
 class iCIFAR10(iData):

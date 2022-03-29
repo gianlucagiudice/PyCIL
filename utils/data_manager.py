@@ -172,7 +172,7 @@ def _get_idata(dataset_name):
         return iImageNet1000()
     elif name == "imagenet100":
         return iImageNet100()
-    elif name == "LogoDet-3K_cropped":
+    elif name == "logodet-3k_cropped":
         return iLogoDet3K()
     else:
         raise NotImplementedError('Unknown dataset {}.'.format(dataset_name))
