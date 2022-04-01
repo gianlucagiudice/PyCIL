@@ -24,8 +24,9 @@ def train(args):
 
 
 def _train(args):
-    logfilename = 'logs/{}_{}_{}_{}_{}_{}_{}'.format(args['prefix'], args['seed'], args['model_name'], args['convnet_type'],
-                                                args['dataset'], args['init_cls'], args['increment'])
+    logfilename = 'logs/{}-{}_{}_{}_{}_{}_{}_{}'.format(
+        args['run_name'], args['prefix'], args['seed'], args['model_name'],
+        args['convnet_type'], args['dataset'], args['init_cls'], args['increment'])
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(filename)s] => %(message)s',
