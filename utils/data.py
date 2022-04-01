@@ -83,14 +83,13 @@ class iLogoDet3K(iData):
 
         train_dir = f'../dataset/{iLogoDet3K.DATASET_PATH}/train/'
         test_dir = f'../dataset/{iLogoDet3K.DATASET_PATH}/val/'
-        os.makedirs(train_dir,  exist_ok=True)
+        os.makedirs(train_dir, exist_ok=True)
         os.makedirs(test_dir, exist_ok=True)
 
         # Copy train images
         self.copy_images(train_df, 'train')
         # Copy test images
         self.copy_images(test_df, 'val')
-
 
         train_dset = datasets.ImageFolder(train_dir)
         test_dset = datasets.ImageFolder(test_dir)
@@ -113,7 +112,7 @@ class iCIFAR10(iData):
     train_trsf = [
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(p=0.5),
-        transforms.ColorJitter(brightness=63/255)
+        transforms.ColorJitter(brightness=63 / 255)
     ]
     test_trsf = []
     common_trsf = [
@@ -135,7 +134,7 @@ class iCIFAR100(iData):
     train_trsf = [
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(brightness=63/255)
+        transforms.ColorJitter(brightness=63 / 255)
     ]
     test_trsf = []
     common_trsf = [
@@ -157,7 +156,7 @@ class iImageNet1000(iData):
     train_trsf = [
         transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(brightness=63/255)
+        transforms.ColorJitter(brightness=63 / 255)
     ]
     test_trsf = [
         transforms.Resize(256),
@@ -171,7 +170,7 @@ class iImageNet1000(iData):
     class_order = np.arange(1000).tolist()
 
     def download_data(self):
-        assert 0,"You should specify the folder of your dataset"
+        assert 0, "You should specify the folder of your dataset"
         train_dir = '[DATA-PATH]/train/'
         test_dir = '[DATA-PATH]/val/'
 
@@ -180,6 +179,7 @@ class iImageNet1000(iData):
 
         self.train_data, self.train_targets = split_images_labels(train_dset.imgs)
         self.test_data, self.test_targets = split_images_labels(test_dset.imgs)
+
 
 class iImageNet100(iData):
     use_path = True
@@ -199,7 +199,7 @@ class iImageNet100(iData):
     class_order = np.arange(1000).tolist()
 
     def download_data(self):
-        assert 0,"You should specify the folder of your dataset"
+        assert 0, "You should specify the folder of your dataset"
         train_dir = '[DATA-PATH]/train/'
         test_dir = '[DATA-PATH]/val/'
 
