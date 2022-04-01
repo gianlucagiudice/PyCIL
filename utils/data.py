@@ -1,15 +1,18 @@
+import os
 import shutil
+import sys
+from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import tqdm
 from torchvision import datasets, transforms
 from utils.toolkit import split_images_labels
-import os
 
+PROJECT_ROOT_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.append(PROJECT_ROOT_PATH)
 
-import pandas as pd
-from config import METADATA_CROPPED_IMAGE_PATH, DATASET_PATH, LOGODET_3K_NORMAL_PATH, LOGODET_3K_SMALL_PATH
-from pathlib import Path
+from config import METADATA_CROPPED_IMAGE_PATH, DATASET_PATH, LOGODET_3K_NORMAL_PATH
 
 
 class iData(object):
