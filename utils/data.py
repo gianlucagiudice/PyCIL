@@ -59,7 +59,7 @@ class iLogoDet3K(iData):
 
     class_order = None
 
-    DATASET_PATH = LOGODET_3K_NORMAL_PATH
+    DATASET_PATH = Path(PROJECT_ROOT_PATH) / 'dataset' / LOGODET_3K_NORMAL_PATH
 
     def download_data(self):
         self.df_cropped = read_df_cropped_logodet3k(iLogoDet3K.DATASET_PATH)
@@ -81,8 +81,8 @@ class iLogoDet3K(iData):
         test_instances = [Path(x.name) for x in self.test_instances]
         test_df = self.df_cropped[self.df_cropped['new_path'].isin(test_instances)]
 
-        train_dir = f'../dataset/{iLogoDet3K.DATASET_PATH}/train/'
-        test_dir = f'../dataset/{iLogoDet3K.DATASET_PATH}/val/'
+        train_dir = iLogoDet3K.DATASET_PATH / 'train'
+        test_dir = iLogoDet3K.DATASET_PATH / 'val'
         os.makedirs(train_dir, exist_ok=True)
         os.makedirs(test_dir, exist_ok=True)
 
@@ -99,9 +99,9 @@ class iLogoDet3K(iData):
 
     def copy_images(self, dataframe, split):
         for _, row in tqdm.tqdm(dataframe.iterrows(), total=len(dataframe)):
-            os.makedirs(f'../dataset/{iLogoDet3K.DATASET_PATH}/{split}/{self.class_to_idx[row[4]]}', exist_ok=True)
-            src = f'../dataset/{iLogoDet3K.DATASET_PATH}/cropped/{str(row[0])}'
-            dst = f'../dataset/{iLogoDet3K.DATASET_PATH}/{split}/{self.class_to_idx[row[4]]}/{str(row[0])}'
+            os.makedirs(iLogoDet3K.DATASET_PATH / split / str(self.class_to_idx[row[4]]), exist_ok=True)
+            src = iLogoDet3K.DATASET_PATH / 'cropped' / str(row[0])
+            dst = iLogoDet3K.DATASET_PATH / split / str(self.class_to_idx[row[4]]) / str(row[0])
 
             if not os.path.exists(dst):
                 shutil.copy(src, dst)
