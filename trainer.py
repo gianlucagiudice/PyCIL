@@ -9,14 +9,19 @@ from utils.toolkit import count_parameters
 import multiprocessing
 
 
-def train(args):
-    seed_list = copy.deepcopy(args['seed'])
+def setup_train_device(args):
     try:
         device = copy.deepcopy(args['device'])
     except KeyError:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
     if device == 'cpu':
         torch.set_num_threads(multiprocessing.cpu_count())
+    return device
+
+
+def train(args):
+    seed_list = copy.deepcopy(args['seed'])
+    device = setup_train_device(args)
     for seed in seed_list:
         args['seed'] = seed
         args['device'] = device
