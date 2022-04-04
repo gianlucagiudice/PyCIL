@@ -42,8 +42,8 @@ def read_df_cropped_logodet3k(dataset_dir, root=f'../{DATASET_PATH}'):
     test = read_instances('test.txt', dataset_dir)
 
     all_instances = [Path(x.name) for x in train + validation + test]
-
-    return df[df['new_path'].isin(all_instances)]
+    sub_df = df[df['cropped_image_path'].isin(all_instances)]
+    return sub_df
 
 
 class iLogoDet3K(iData):
@@ -72,14 +72,15 @@ class iLogoDet3K(iData):
         # Class to index
         self.classes = self.df_cropped['brand'].unique()
         self.class_to_idx = {b: i for i, b in enumerate(self.classes)}
+        self.class_order = np.arange(0, len(self.classes))
         print(f'Class to idx len: {len(self.class_to_idx.keys())}')
 
         # Split df
         train_instances = [Path(x.name) for x in self.train_instances + self.validation_instances]
-        train_df = self.df_cropped[self.df_cropped['new_path'].isin(train_instances)]
+        train_df = self.df_cropped[self.df_cropped['cropped_image_path'].isin(train_instances)]
 
         test_instances = [Path(x.name) for x in self.test_instances]
-        test_df = self.df_cropped[self.df_cropped['new_path'].isin(test_instances)]
+        test_df = self.df_cropped[self.df_cropped['cropped_image_path'].isin(test_instances)]
 
         train_dir = iLogoDet3K.DATASET_PATH / 'train'
         test_dir = iLogoDet3K.DATASET_PATH / 'val'
