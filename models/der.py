@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from models.base import BaseLearner
 from utils.inc_net import DERNet, IncrementalNet
 from utils.toolkit import count_parameters, target2onehot, tensor2numpy
+import wandb
 
 EPSILON = 1e-8
 
@@ -122,15 +123,16 @@ class DER(BaseLearner):
             scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
-            if epoch % 5 == 0:
-                test_acc = self._compute_accuracy(self._network, test_loader)
-                info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Test_accy {:.2f}'.format(
-                    self._cur_task, epoch + 1, init_epoch, losses / len(train_loader), train_acc, test_acc)
-                test_acc_list.append(test_acc)
-            else:
-                info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}'.format(
-                    self._cur_task, epoch + 1, init_epoch, losses / len(train_loader), train_acc)
+            test_acc = self._compute_accuracy(self._network, test_loader)
+            info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Test_accy {:.2f}'.format(
+                self._cur_task, epoch + 1, init_epoch, losses / len(train_loader), train_acc, test_acc)
+            test_acc_list.append(test_acc)
+
             prog_bar.set_description(info)
+
+            # Wandb
+            wandb.log({f'task{0}-train/acc': train_acc})
+            wandb.log({f'task{0}-test/acc': test_acc})
 
         self._training_history[self._cur_task] = test_acc_list
         logging.info(info)
@@ -169,24 +171,22 @@ class DER(BaseLearner):
 
             scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
-            if epoch % 5 == 0:
-                test_acc = self._compute_accuracy(self._network, test_loader)
-                info = 'Task {}, Epoch {}/{} => ' \
-                       'Loss {:.3f}, Loss_clf {:.3f}, ' \
-                       'Loss_aux {:.3f}, ' \
-                       'Train_accy {:.2f}, ' \
-                       'Test_accy {:.2f}'\
-                    .format(self._cur_task, epoch + 1, epochs, losses / len(train_loader),
-                            losses_clf / len(train_loader), losses_aux / len(train_loader), train_acc, test_acc)
-                test_acc_list.append(test_acc)
-            else:
-                info = 'Task {}, Epoch {}/{} => ' \
-                       'Loss {:.3f}, Loss_clf {:.3f}, ' \
-                       'Loss_aux {:.3f}, ' \
-                       'Train_accy {:.2f}'\
-                    .format(self._cur_task, epoch + 1, epochs, losses / len(train_loader),
-                            losses_clf / len(train_loader), losses_aux / len(train_loader), train_acc)
+
+            test_acc = self._compute_accuracy(self._network, test_loader)
+            info = 'Task {}, Epoch {}/{} => ' \
+                   'Loss {:.3f}, Loss_clf {:.3f}, ' \
+                   'Loss_aux {:.3f}, ' \
+                   'Train_accy {:.2f}, ' \
+                   'Test_accy {:.2f}'\
+                .format(self._cur_task, epoch + 1, epochs, losses / len(train_loader),
+                        losses_clf / len(train_loader), losses_aux / len(train_loader), train_acc, test_acc)
+            test_acc_list.append(test_acc)
+
             prog_bar.set_description(info)
+
+            # Wandb
+            wandb.log({f'task{self._cur_task}-train/acc': train_acc})
+            wandb.log({f'task{self._cur_task}-test/acc': test_acc})
 
         self._training_history[self._cur_task] = test_acc_list
         logging.info(info)

@@ -7,13 +7,14 @@ from utils import factory
 from utils.data_manager import DataManager
 from utils.toolkit import count_parameters
 import multiprocessing
+import wandb
 
 
 def setup_train_device(args):
     try:
         device = copy.deepcopy(args['device'])
     except KeyError:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     if device == 'cpu':
         torch.set_num_threads(multiprocessing.cpu_count())
     return device
@@ -40,6 +41,8 @@ def _train(args):
             logging.StreamHandler(sys.stdout)
         ]
     )
+
+    wandb.init(project='pycil')
 
     _set_random()
     print_args(args)
@@ -68,6 +71,10 @@ def _train(args):
             logging.info('CNN top5 curve: {}'.format(cnn_curve['top5']))
             logging.info('NME top1 curve: {}'.format(nme_curve['top1']))
             logging.info('NME top5 curve: {}\n'.format(nme_curve['top5']))
+
+            wandb.log({'top1-acc': cnn_curve['top1']})
+            wandb.log({'top5-acc': cnn_curve['top5']})
+
         else:
             logging.info('No NME accuracy.')
             logging.info('CNN: {}'.format(cnn_accy['grouped']))
@@ -77,6 +84,9 @@ def _train(args):
 
             logging.info('CNN top1 curve: {}'.format(cnn_curve['top1']))
             logging.info('CNN top5 curve: {}\n'.format(cnn_curve['top5']))
+
+            wandb.log({'top1-acc': cnn_curve['top1']})
+            wandb.log({'top5-acc': cnn_curve['top5']})
 
     # Dump training history
     logging.info('Dumping training hitsory . . .')
