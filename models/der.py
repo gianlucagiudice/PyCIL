@@ -93,7 +93,6 @@ class DER(BaseLearner):
             scheduler = optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
             self._update_representation(train_loader, test_loader, optimizer, scheduler)
             self._network.module.weight_align(self._total_classes - self._known_classes)
-            self._network.weight_align(self._total_classes - self._known_classes)
 
     def _init_train(self, train_loader, test_loader, optimizer, scheduler):
         test_acc_list = []
