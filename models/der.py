@@ -23,7 +23,7 @@ epochs = 170
 lrate = 0.1
 milestones = [80, 120, 150]
 lrate_decay = 0.1
-batch_size = 128
+batch_size = 512
 weight_decay = 2e-4
 num_workers = 8
 T = 2
@@ -92,10 +92,6 @@ class DER(BaseLearner):
                                   weight_decay=weight_decay)
             scheduler = optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
             self._update_representation(train_loader, test_loader, optimizer, scheduler)
-            '''
-            if len(self._multiple_gpus) > 1:
-            else:
-            '''
             self._network.module.weight_align(self._total_classes - self._known_classes)
             self._network.weight_align(self._total_classes - self._known_classes)
 
@@ -131,8 +127,7 @@ class DER(BaseLearner):
             prog_bar.set_description(info)
 
             # Wandb
-            wandb.log({f'task{0}-train/acc': train_acc})
-            wandb.log({f'task{0}-test/acc': test_acc})
+            wandb.log({f'task_{0}/train_acc': train_acc, f'task_{0}/test_acc': test_acc}, step=epoch)
 
         self._training_history[self._cur_task] = test_acc_list
         logging.info(info)
@@ -185,8 +180,9 @@ class DER(BaseLearner):
             prog_bar.set_description(info)
 
             # Wandb
-            wandb.log({f'task{self._cur_task}-train/acc': train_acc})
-            wandb.log({f'task{self._cur_task}-test/acc': test_acc})
+            wandb.log({f'task_{self._cur_task}/train_acc': train_acc,
+                       f'task_{self._cur_task}/test_acc': test_acc}, step=epoch)
+
 
         self._training_history[self._cur_task] = test_acc_list
         logging.info(info)

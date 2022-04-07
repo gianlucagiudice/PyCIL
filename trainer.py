@@ -32,7 +32,9 @@ def _train(args):
         ]
     )
 
-    wandb.init(project='pycil')
+    wandb.init(project='pycil', config=args)
+    wandb.run.name = f"{args['convnet_type']}-{'pretrained' if args['pretrained'] else 'nopretrained'}"
+    wandb.run.save()
 
     _set_random()
     _set_device(args)
@@ -63,10 +65,6 @@ def _train(args):
             logging.info('CNN top5 curve: {}'.format(cnn_curve['top5']))
             logging.info('NME top1 curve: {}'.format(nme_curve['top1']))
             logging.info('NME top5 curve: {}\n'.format(nme_curve['top5']))
-
-            wandb.log({'top1-acc': cnn_curve['top1']})
-            wandb.log({'top5-acc': cnn_curve['top5']})
-
         else:
             logging.info('No NME accuracy.')
             logging.info('CNN: {}'.format(cnn_accy['grouped']))
@@ -77,8 +75,7 @@ def _train(args):
             logging.info('CNN top1 curve: {}'.format(cnn_curve['top1']))
             logging.info('CNN top5 curve: {}\n'.format(cnn_curve['top5']))
 
-            wandb.log({'top1-acc': cnn_curve['top1']})
-            wandb.log({'top5-acc': cnn_curve['top5']})
+        wandb.log({'metrics/top1_acc': cnn_accy['top1'], 'metrics/top5_acc': cnn_accy['top5']}, step=task)
 
     # Dump training history
     logging.info('Dumping training hitsory . . .')
