@@ -99,7 +99,7 @@ def _set_device(args):
     if device_type == -1:
         args['device'] = torch.device('cpu')
     else:
-        args['device'] = [torch.device('cuda:{}'.format(device)) for device in device_type]
+        args['device'] = [torch.device('cuda:{}'.format(device)) for device in device_type][0]
 
 
 def _set_random():

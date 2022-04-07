@@ -67,12 +67,16 @@ class DER(BaseLearner):
         test_dataset = data_manager.get_dataset(np.arange(0, self._total_classes), source='test', mode='test')
         self.test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-        #if len(self._multiple_gpus) > 1:
+        '''
+        if len(self._multiple_gpus) > 1:
+        '''
         self._network = nn.DataParallel(self._network, self._multiple_gpus)
         self._train(self.train_loader, self.test_loader)
         self.build_rehearsal_memory(data_manager, self.samples_per_class)
-        #if len(self._multiple_gpus) > 1:
         self._network = self._network.module
+        '''
+        if len(self._multiple_gpus) > 1:
+        '''
 
     def train(self):
         self._network.train()
@@ -94,10 +98,12 @@ class DER(BaseLearner):
                                   weight_decay=weight_decay)
             scheduler = optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
             self._update_representation(train_loader, test_loader, optimizer, scheduler)
+            '''
             if len(self._multiple_gpus) > 1:
-                self._network.module.weight_align(self._total_classes - self._known_classes)
             else:
-                self._network.weight_align(self._total_classes - self._known_classes)
+            '''
+            self._network.module.weight_align(self._total_classes - self._known_classes)
+            self._network.weight_align(self._total_classes - self._known_classes)
 
     def _init_train(self, train_loader, test_loader, optimizer, scheduler):
         test_acc_list = []
