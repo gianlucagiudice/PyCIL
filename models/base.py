@@ -25,7 +25,7 @@ class BaseLearner(object):
         self._memory_per_class = args['memory_per_class']
         self._fixed_memory = args['fixed_memory']
         self._device = args['device']
-        self._multiple_gpus = args['device']
+        self._multiple_gpus = [] if self._device.type == 'cpu' else args['device']
 
     @property
     def exemplar_size(self):

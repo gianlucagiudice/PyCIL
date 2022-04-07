@@ -67,12 +67,12 @@ class DER(BaseLearner):
         test_dataset = data_manager.get_dataset(np.arange(0, self._total_classes), source='test', mode='test')
         self.test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-        if len(self._multiple_gpus) > 1:
-            self._network = nn.DataParallel(self._network, self._multiple_gpus)
+        #if len(self._multiple_gpus) > 1:
+        self._network = nn.DataParallel(self._network, self._multiple_gpus)
         self._train(self.train_loader, self.test_loader)
         self.build_rehearsal_memory(data_manager, self.samples_per_class)
-        if len(self._multiple_gpus) > 1:
-            self._network = self._network.module
+        #if len(self._multiple_gpus) > 1:
+        self._network = self._network.module
 
     def train(self):
         self._network.train()

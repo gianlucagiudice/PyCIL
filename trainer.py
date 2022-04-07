@@ -9,23 +9,13 @@ from utils.toolkit import count_parameters
 import wandb
 
 
-def setup_train_device():
-    '''
-    try:
-        device = copy.deepcopy(args['device'])
-    except KeyError:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    if device == 'cpu':
-        torch.set_num_threads(multiprocessing.cpu_count())
-    '''
-    return 'cuda' if torch.cuda.is_available() else 'cpu'
-
-
 def train(args):
     seed_list = copy.deepcopy(args['seed'])
+    device = copy.deepcopy(args['device'])
+
     for seed in seed_list:
         args['seed'] = seed
-        args['device'] = setup_train_device()
+        args['device'] = device
         _train(args)
 
 
@@ -45,6 +35,8 @@ def _train(args):
     wandb.init(project='pycil')
 
     _set_random()
+    _set_device(args)
+
     print_args(args)
     data_manager = DataManager(args['dataset'], args['shuffle'], args['seed'], args['init_cls'], args['increment'])
     model = factory.get_model(args['model_name'], args)
@@ -103,8 +95,11 @@ def _train(args):
 
 def _set_device(args):
     device_type = args['device']
-    if device_type != -1:
-        args['device'] = [torch.device(f'cuda:{device}') for device in device_type]
+
+    if device_type == -1:
+        args['device'] = torch.device('cpu')
+    else:
+        args['device'] = [torch.device('cuda:{}'.format(device)) for device in device_type]
 
 
 def _set_random():
