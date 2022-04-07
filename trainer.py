@@ -75,7 +75,7 @@ def _train(args):
             logging.info('CNN top1 curve: {}'.format(cnn_curve['top1']))
             logging.info('CNN top5 curve: {}\n'.format(cnn_curve['top5']))
 
-        wandb.log({'metrics/top1_acc': cnn_accy['top1'], 'metrics/top5_acc': cnn_accy['top5']}, step=task)
+        wandb.log({'CIL/top1_acc': cnn_accy['top1'], 'CIL/top5_acc': cnn_accy['top5']}, step=task)
 
     # Dump training history
     logging.info('Dumping training hitsory . . .')
