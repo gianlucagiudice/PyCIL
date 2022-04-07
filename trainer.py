@@ -6,26 +6,26 @@ import torch
 from utils import factory
 from utils.data_manager import DataManager
 from utils.toolkit import count_parameters
-import multiprocessing
 import wandb
 
 
-def setup_train_device(args):
+def setup_train_device():
+    '''
     try:
         device = copy.deepcopy(args['device'])
     except KeyError:
-        device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
     if device == 'cpu':
         torch.set_num_threads(multiprocessing.cpu_count())
-    return device
+    '''
+    return 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def train(args):
     seed_list = copy.deepcopy(args['seed'])
-    device = setup_train_device(args)
     for seed in seed_list:
         args['seed'] = seed
-        args['device'] = device
+        args['device'] = setup_train_device()
         _train(args)
 
 
