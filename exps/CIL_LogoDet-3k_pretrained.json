@@ -1,5 +1,5 @@
 {
-    "run_name": "exp02-top-frequency-pretrained",
+    "run_name": "exp02_docker-top-frequency-pretrained",
     "prefix": "reproduce",
     "dataset": "LogoDet-3K_cropped",
     "memory_size": 2000,
@@ -9,7 +9,7 @@
     "init_cls": 30,
     "increment": 10,
     "model_name": "der",
-    "convnet_type": "resnet50",
+    "convnet_type": "resnet18",
     "pretrained": false,
     "seed": [830694]
 }
