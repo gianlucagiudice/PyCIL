@@ -91,12 +91,10 @@ def _train(args):
 
 
 def _set_device(args):
-    device_type = args['device']
-
-    if device_type == -1:
-        args['device'] = torch.device('cpu')
-    else:
+    if torch.cuda.is_available():
         args['device'] = torch.device('cuda:0')
+    else:
+        args['device'] = torch.device('cpu')
 
 
 def _set_random():
