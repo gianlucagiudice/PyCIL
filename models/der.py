@@ -126,6 +126,7 @@ class DER(BaseLearner):
             prog_bar.set_description(info)
 
             # Wandb
+            #wandb.log({f'task{0}/train_acc': train_acc, f'task{0}/test_acc': test_acc, 'epoch': epoch})
             wandb.log({f'task{0}/train_acc': train_acc, f'task{0}/test_acc': test_acc})
 
         self._training_history[self._cur_task] = test_acc_list
@@ -179,6 +180,12 @@ class DER(BaseLearner):
             prog_bar.set_description(info)
 
             # Wandb
+            '''
+            wandb.log({f'task{self._cur_task}/train_acc': train_acc,
+                       f'task{self._cur_task}/test_acc': test_acc,
+                       'epoch': epoch})
+            '''
+
             wandb.log({f'task{self._cur_task}/train_acc': train_acc,
                        f'task{self._cur_task}/test_acc': test_acc})
 
