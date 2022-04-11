@@ -28,8 +28,10 @@ weight_decay = 2e-4
 num_workers = 8
 T = 2
 
+early_stop_patience = 7
+
 # TODO: Change hyper-parameters
-init_epoch = 100
+init_epoch = 5
 init_milestones = [50, 75]
 epochs = 50
 milestones = [40]
@@ -94,10 +96,22 @@ class DER(BaseLearner):
             self._update_representation(train_loader, test_loader, optimizer, scheduler)
             self._network.module.weight_align(self._total_classes - self._known_classes)
 
-    def _init_train(self, train_loader, test_loader, optimizer, scheduler):
+    def _init_train(self, train_loader, test_loader, optimizer, scheduler, patience=early_stop_patience):
         test_acc_list = []
         prog_bar = tqdm(range(init_epoch))
+
+        # Early stopping
+        best_network_so_far = self._network.module.copy()
+        best_test_acc_so_far = 0
+        curr_patience = patience
+
         for _, epoch in enumerate(prog_bar):
+
+            # Early stopping
+            if curr_patience == 0:
+                logging.info(f"Early stopping on task {self._cur_task}, Epoch {epoch}/{epochs}")
+                break
+
             self.train()
             losses = 0.
             correct, total = 0, 0
@@ -119,6 +133,14 @@ class DER(BaseLearner):
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
             test_acc = self._compute_accuracy(self._network, test_loader)
+
+            # Early stopping
+            if test_acc >= best_test_acc_so_far:
+                curr_patience = patience
+                best_network_so_far = self._network.module.copy()
+            else:
+                curr_patience -= 1
+
             info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Test_accy {:.2f}'.format(
                 self._cur_task, epoch + 1, init_epoch, losses / len(train_loader), train_acc, test_acc)
             test_acc_list.append(test_acc)
@@ -128,14 +150,29 @@ class DER(BaseLearner):
             # Wandb
             wandb.log({f'task{0}/train_acc': train_acc, f'task{0}/test_acc': test_acc, 'epoch': epoch})
 
+        # Use the best network
+        self._network.module = best_network_so_far
+
         self._training_history[self._cur_task] = test_acc_list
         logging.info(info)
         logging.info(f'Task {self._cur_task}, Accuracy train history => {test_acc_list}')
 
-    def _update_representation(self, train_loader, test_loader, optimizer, scheduler):
+    def _update_representation(self, train_loader, test_loader, optimizer, scheduler, patience=early_stop_patience):
         test_acc_list = []
         prog_bar = tqdm(range(epochs))
+
+        # Early stopping
+        best_network_so_far = self._network.module.copy()
+        best_test_acc_so_far = 0
+        curr_patience = patience
+
         for _, epoch in enumerate(prog_bar):
+
+            # Early stopping
+            if curr_patience == 0:
+                logging.info(f"Early stopping on task {self._cur_task}, Epoch {epoch}/{epochs}")
+                break
+
             self.train()
             losses = 0.
             losses_clf = 0.
@@ -167,6 +204,13 @@ class DER(BaseLearner):
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
             test_acc = self._compute_accuracy(self._network, test_loader)
+
+            if test_acc >= best_test_acc_so_far:
+                curr_patience = patience
+                best_network_so_far = self._network.module.copy()
+            else:
+                curr_patience -= 1
+
             info = 'Task {}, Epoch {}/{} => ' \
                    'Loss {:.3f}, Loss_clf {:.3f}, ' \
                    'Loss_aux {:.3f}, ' \
@@ -182,6 +226,9 @@ class DER(BaseLearner):
             wandb.log({f'task{self._cur_task}/train_acc': train_acc,
                        f'task{self._cur_task}/test_acc': test_acc,
                        'epoch': epoch})
+
+        # Use the best network
+        self._network.module = best_network_so_far
 
         self._training_history[self._cur_task] = test_acc_list
         logging.info(info)
