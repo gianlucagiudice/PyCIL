@@ -26,7 +26,7 @@ config_dict = {
 grid_search_path = "exps/CIL_LogoDet-3k_grid_search.json"
 
 grid_search = [
-    ["resnet50", "resnet34"],
+    ["resnet50"],
     [True, False],
     [0.1, 0.3, 0.5]
 ]
