@@ -249,7 +249,7 @@ class IncrementalNetWithBias(BaseNet):
 
 
 class DERNet(nn.Module):
-    def __init__(self, convnet_type, pretrained):
+    def __init__(self, convnet_type, pretrained, dropout=None):
         super(DERNet, self).__init__()
         self.convnet_type = convnet_type
         self.convnets = nn.ModuleList()
@@ -258,6 +258,7 @@ class DERNet(nn.Module):
         self.fc = None
         self.aux_fc = None
         self.task_sizes = []
+        self.dropout = nn.Dropout(p=dropout) if dropout else None
 
     @property
     def feature_dim(self):
@@ -274,6 +275,11 @@ class DERNet(nn.Module):
         features = [convnet(x)['features'] for convnet in self.convnets]
         features = torch.cat(features, 1)
 
+        # Dropout
+        if self.dropout:
+            features = self.dropout(features)
+
+        # Actual output
         out = self.fc(features)  # {logics: self.fc(features)}
 
         aux_logits = self.aux_fc(features[:, -self.out_dim:])["logits"]

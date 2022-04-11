@@ -39,7 +39,7 @@ class DER(BaseLearner):
 
     def __init__(self, args):
         super().__init__(args)
-        self._network = DERNet(args['convnet_type'], args['pretrained'])
+        self._network = DERNet(args['convnet_type'], args['pretrained'], dropout=args.get('dropout'))
         self._training_history = dict()
 
     def after_task(self):
