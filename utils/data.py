@@ -119,7 +119,7 @@ class iLogoDet3K(iData):
             transforms.RandomChoice(image_distortion)
         ])
 
-        return final_transformation
+        return [final_transformation]
 
     def copy_images(self, dataframe, split):
         for _, row in tqdm.tqdm(dataframe.iterrows(), total=len(dataframe)):
