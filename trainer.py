@@ -31,14 +31,20 @@ def _train(args):
     )
 
     wandb.init(project='pycil', config=args)
-    wandb.run.name = f"{args['convnet_type']}-{'pretrained' if args['pretrained'] else 'nopretrained'}"
+    wandb.run.name = f"{args['convnet_type']}-" \
+                     f"{'pretrained' if args['pretrained'] else 'nopretrained'}-" \
+                     f"drop{args.get('dropout')}" \
+                     f"{'-augmented' if args.get('data_augmentation') else ''}"
     wandb.run.save()
 
     _set_random()
     _set_device(args)
 
     print_args(args)
-    data_manager = DataManager(args['dataset'], args['shuffle'], args['seed'], args['init_cls'], args['increment'])
+    data_manager = DataManager(
+        args['dataset'], args['shuffle'], args['seed'], args['init_cls'],
+        args['increment'], args.get('data_augmentation', False)
+    )
     model = factory.get_model(args['model_name'], args)
 
     cnn_curve, nme_curve = {'top1': [], 'top5': []}, {'top1': [], 'top5': []}

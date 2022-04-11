@@ -61,7 +61,11 @@ class iLogoDet3K(iData):
 
     DATASET_PATH = Path(PROJECT_ROOT_PATH) / 'dataset' / LOGODET_3K_NORMAL_PATH
 
-    def download_data(self):
+    def download_data(self, data_augmentation=False):
+        # Init data augmentation
+        if data_augmentation:
+            iLogoDet3K.train_trsf = iLogoDet3K.init_data_augmentation()
+
         self.df_cropped = read_df_cropped_logodet3k(iLogoDet3K.DATASET_PATH)
         self.train_instances = read_instances('train.txt', iLogoDet3K.DATASET_PATH)
         self.validation_instances = read_instances('validation.txt', iLogoDet3K.DATASET_PATH)
@@ -97,6 +101,25 @@ class iLogoDet3K(iData):
 
         self.train_data, self.train_targets = split_images_labels(train_dset.imgs)
         self.test_data, self.test_targets = split_images_labels(test_dset.imgs)
+
+    @staticmethod
+    def init_data_augmentation():
+        affine_transformation = [
+            transforms.RandomAffine(10),
+            transforms.RandomPerspective(0.4, 1)
+        ]
+        image_distortion = [
+            transforms.RandomAdjustSharpness(10, 1),
+            transforms.RandomPosterize(5),
+            transforms.ColorJitter((0.9, 1), (0.9, 1), (0.9, 1), (-0.01, 0.01))
+        ]
+
+        final_transformation = transforms.Compose([
+            transforms.RandomChoice(affine_transformation),
+            transforms.RandomChoice(image_distortion)
+        ])
+
+        return final_transformation
 
     def copy_images(self, dataframe, split):
         for _, row in tqdm.tqdm(dataframe.iterrows(), total=len(dataframe)):
