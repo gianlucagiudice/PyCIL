@@ -30,12 +30,6 @@ T = 2
 
 early_stop_patience = 7
 
-# TODO: Change hyper-parameters
-init_epoch = 5
-init_milestones = [50, 75]
-epochs = 50
-milestones = [40]
-
 
 class DER(BaseLearner):
 
