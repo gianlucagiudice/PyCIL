@@ -43,7 +43,7 @@ def _train(args):
     print_args(args)
     data_manager = DataManager(
         args['dataset'], args['shuffle'], args['seed'], args['init_cls'],
-        args['increment'], args.get('data_augmentation', False)
+        args['increment'], args.get('data_augmentation', False), args.get('device', None)
     )
     model = factory.get_model(args['model_name'], args)
 
