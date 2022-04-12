@@ -132,6 +132,7 @@ class DER(BaseLearner):
             if test_acc >= best_test_acc_so_far:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
+                best_test_acc_so_far = test_acc
             else:
                 curr_patience -= 1
 
@@ -202,6 +203,7 @@ class DER(BaseLearner):
             if test_acc >= best_test_acc_so_far:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
+                best_test_acc_so_far = test_acc
             else:
                 curr_patience -= 1
 
