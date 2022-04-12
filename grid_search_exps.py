@@ -38,7 +38,7 @@ grid_search = list(itertools.product(*grid_search))
 subprocess.run('ulimit -n 2048', shell=True)
 for (i, element) in enumerate(grid_search):
     # Print grid search info
-    print(f'Grid search {i+1}/{len(grid_search)}')
+    print(f'{"=" * 20} Grid search {i+1}/{len(grid_search)} {"=" * 20}')
 
     # Unpack gridsearch
     architecture, pretrained, dropout = element
