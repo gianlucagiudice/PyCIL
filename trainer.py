@@ -33,7 +33,7 @@ def _train(args):
     wandb.init(project='pycil', config=args)
     wandb.run.name = f"{args['convnet_type']}-" \
                      f"{'pretrained' if args['pretrained'] else 'nopretrained'}-" \
-                     f"drop{args.get('dropout')}" \
+                     f"drop{args.get('dropout', 0)}" \
                      f"{'-augmented' if args.get('data_augmentation') else ''}"
     wandb.run.save()
 
