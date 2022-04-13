@@ -7,10 +7,9 @@ from utils.data import iCIFAR10, iCIFAR100, iImageNet100, iImageNet1000, iLogoDe
 
 
 class DataManager(object):
-    def __init__(self, dataset_name, shuffle, seed, init_cls, increment, data_augmentation=False, device=None):
+    def __init__(self, dataset_name, shuffle, seed, init_cls, increment, data_augmentation=False):
         self.dataset_name = dataset_name
         self._setup_data(dataset_name, shuffle, seed, data_augmentation)
-        self.device = device
         assert init_cls <= len(self._class_order), 'No enough classes.'
         self._increments = [init_cls]
         while sum(self._increments) + increment < len(self._class_order):
@@ -57,9 +56,9 @@ class DataManager(object):
         data, targets = np.concatenate(data), np.concatenate(targets)
 
         if ret_data:
-            return data, targets, DummyDataset(data, targets, trsf, self.use_path, self.device)
+            return data, targets, DummyDataset(data, targets, trsf, self.use_path)
         else:
-            return DummyDataset(data, targets, trsf, self.use_path, self.device)
+            return DummyDataset(data, targets, trsf, self.use_path)
 
     def get_dataset_with_split(self, indices, source, mode, appendent=None, val_samples_per_class=0):
         if source == 'train':
@@ -102,8 +101,8 @@ class DataManager(object):
         train_data, train_targets = np.concatenate(train_data), np.concatenate(train_targets)
         val_data, val_targets = np.concatenate(val_data), np.concatenate(val_targets)
 
-        return DummyDataset(train_data, train_targets, trsf, self.use_path, self.device), \
-            DummyDataset(val_data, val_targets, trsf, self.use_path, self.device)
+        return DummyDataset(train_data, train_targets, trsf, self.use_path), \
+            DummyDataset(val_data, val_targets, trsf, self.use_path)
 
     def _setup_data(self, dataset_name, shuffle, seed, data_augmentation):
         idata = _get_idata(dataset_name)
@@ -139,13 +138,12 @@ class DataManager(object):
 
 
 class DummyDataset(Dataset):
-    def __init__(self, images, labels, trsf, use_path=False, device=None):
+    def __init__(self, images, labels, trsf, use_path=False):
         assert len(images) == len(labels), 'Data size error!'
         self.images = images
         self.labels = labels
         self.trsf = trsf
         self.use_path = use_path
-        self.device = device
 
     def __len__(self):
         return len(self.images)
@@ -156,10 +154,6 @@ class DummyDataset(Dataset):
         else:
             image = Image.fromarray(self.images[idx])
 
-        # Transform to tensor
-        image = transforms.ToTensor()(image)
-        # Move tensor to gpu (if available)
-        image.to(self.device if self.device else 'cpu')
         # Apply transformations
         image = self.trsf(image)
 

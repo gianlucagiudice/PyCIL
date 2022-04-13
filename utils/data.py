@@ -54,7 +54,7 @@ class iLogoDet3K(iData):
 
     common_trsf = [
         transforms.Resize((32, 32)),
-        # transforms.ToTensor(),
+        transforms.ToTensor(),
     ]
 
     class_order = None
