@@ -3,6 +3,8 @@ import json
 import subprocess
 import itertools
 
+BASELINE = True
+
 config_dict = {
     "run_name": "exp02_docker-top-frequency-nopretrained-50",
     "prefix": "reproduce",
@@ -22,6 +24,10 @@ config_dict = {
     "convnet_type": None,
     "pretrained": None,
 }
+
+if BASELINE:
+    # Use all classes
+    config_dict["init_cls"] = 100
 
 grid_search_path = "exps/CIL_LogoDet-3k_grid_search.json"
 
@@ -45,7 +51,7 @@ for (i, element) in enumerate(grid_search):
 
     # Construct dict parameters
     config_dict_temp = copy(config_dict)
-    config_dict_temp['run_name'] = f'exp_grid-search{i}_' \
+    config_dict_temp['run_name'] = f'exp_grid-search{"_BASELINE_" if BASELINE else ""}{i}_' \
                                    f'arch={architecture}_' \
                                    f'pretrained={pretrained}_' \
                                    f'dropout={dropout}'
