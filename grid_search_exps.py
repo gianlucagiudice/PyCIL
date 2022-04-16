@@ -2,8 +2,14 @@ from copy import copy
 import json
 import subprocess
 import itertools
+import argparse
 
-BASELINE = True
+parser = argparse.ArgumentParser(description='Grid search for experiments.')
+
+parser.add_argument('--baseline', action=argparse.BooleanOptionalAction,
+                    help='Gridsearch for baseline.', required=True)
+
+args = parser.parse_args()
 
 config_dict = {
     "run_name": "exp02_docker-top-frequency-nopretrained-50",
@@ -13,7 +19,7 @@ config_dict = {
     "memory_per_class": 1000,
     "fixed_memory": True,
     "shuffle": True,
-    "init_cls": 30,
+    "init_cls": 100 if args.baseline else 30,
     "increment": 10,
     "model_name": "der",
     "data_augmentation": True,
@@ -23,11 +29,11 @@ config_dict = {
     "dropout": None,
     "convnet_type": None,
     "pretrained": None,
+
+    # Baseline method?
+    "baseline": args.baseline
 }
 
-if BASELINE:
-    # Use all classes
-    config_dict["init_cls"] = 100
 
 grid_search_path = "exps/CIL_LogoDet-3k_grid_search.json"
 
@@ -51,7 +57,7 @@ for (i, element) in enumerate(grid_search):
 
     # Construct dict parameters
     config_dict_temp = copy(config_dict)
-    config_dict_temp['run_name'] = f'exp_grid-search{"_BASELINE_" if BASELINE else ""}{i}_' \
+    config_dict_temp['run_name'] = f'exp_grid-search{"_BASELINE_" if args.baseline else ""}{i}_' \
                                    f'arch={architecture}_' \
                                    f'pretrained={pretrained}_' \
                                    f'dropout={dropout}'
