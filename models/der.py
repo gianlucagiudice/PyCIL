@@ -29,7 +29,7 @@ num_workers = 8
 T = 2
 
 init_early_stop_patience = 200
-early_stop_patience = 30
+early_stop_patience = 75
 
 
 class DER(BaseLearner):
