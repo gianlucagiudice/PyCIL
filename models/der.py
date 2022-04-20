@@ -15,7 +15,7 @@ EPSILON = 1e-8
 
 init_epoch = 200
 init_lr = 0.1
-init_milestones = [60, 150, 180]
+init_milestones = [75, 150, 180]
 init_lr_decay = 0.1
 init_weight_decay = 0.0005
 
@@ -28,7 +28,7 @@ weight_decay = 2e-4
 num_workers = 8
 T = 2
 
-init_early_stop_patience = 150
+init_early_stop_patience = 200
 early_stop_patience = 30
 
 
