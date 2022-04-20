@@ -26,7 +26,7 @@ config_dict = {
     "seed": [830694],
 
     # Grid search parameters
-    "dropout": None,
+    "dropout": 0,
     "convnet_type": None,
     "pretrained": None,
 
