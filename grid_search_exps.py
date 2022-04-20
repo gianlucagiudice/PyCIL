@@ -39,11 +39,11 @@ grid_search_path = "exps/CIL_LogoDet-3k_grid_search.json"
 
 grid_search = [
     # Architecture
-    ["resnet34"],
+    ["resnet34", "resnet50"],
     # Pretrained
-    [True, False],
+    [True],
     # Dropout rate
-    [0.1, 0.3, 0.5]
+    [0.3]
 ]
 grid_search = list(itertools.product(*grid_search))
 
