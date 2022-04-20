@@ -9,17 +9,9 @@ from utils.toolkit import count_parameters
 import wandb
 
 
-def train(args):
-    seed_list = copy.deepcopy(args['seed'])
-
-    for seed in seed_list:
-        args['seed'] = seed
-        _train(args)
-
-
-def _train(args):
-    logfilename = 'logs/{}-{}_{}_{}_{}_{}_{}_{}'.format(
-        args['run_name'], args['prefix'], args['seed'], args['model_name'],
+def init_logger(args, dir_path):
+    logfilename = '{}/{}-{}_{}_{}_{}_{}_{}_{}'.format(
+        dir_path, args['run_name'], args['prefix'], args['seed'], args['model_name'],
         args['convnet_type'], args['dataset'], args['init_cls'], args['increment'])
     logging.basicConfig(
         level=logging.INFO,
@@ -29,6 +21,17 @@ def _train(args):
             logging.StreamHandler(sys.stdout)
         ]
     )
+
+def train(args):
+    seed_list = copy.deepcopy(args['seed'])
+
+    for seed in seed_list:
+        args['seed'] = seed
+        _train(args)
+
+
+def _train(args):
+    init_logger(args, 'logs')
 
     wandb.init(project='pycil', config=args)
     wandb.run.name = f"{'BASELINE_' if args.get('baseline', None) else ''}" \
