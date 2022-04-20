@@ -15,7 +15,7 @@ EPSILON = 1e-8
 
 init_epoch = 200
 init_lr = 0.1
-init_milestones = [60, 120, 170]
+init_milestones = [60, 150, 180]
 init_lr_decay = 0.1
 init_weight_decay = 0.0005
 
@@ -28,7 +28,8 @@ weight_decay = 2e-4
 num_workers = 8
 T = 2
 
-early_stop_patience = 100
+init_early_stop_patience = 150
+early_stop_patience = 30
 
 
 class DER(BaseLearner):
@@ -90,7 +91,7 @@ class DER(BaseLearner):
             self._update_representation(train_loader, test_loader, optimizer, scheduler)
             self._network.module.weight_align(self._total_classes - self._known_classes)
 
-    def _init_train(self, train_loader, test_loader, optimizer, scheduler, patience=early_stop_patience):
+    def _init_train(self, train_loader, test_loader, optimizer, scheduler, patience=init_early_stop_patience):
         test_acc_list = []
         prog_bar = tqdm(range(init_epoch))
 
