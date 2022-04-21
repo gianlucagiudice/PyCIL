@@ -33,7 +33,13 @@ def train(args):
 def _train(args):
     init_logger(args, 'logs')
 
-    wandb.init(project='pycil', config=args)
+    # Init tags
+    tags = []
+    tags += ['baseline'] if args.get('baseline') else ['cil']
+    tags += ['onlytop'] if args.get('onlytop') else []
+
+    wandb.init(project='pycil', config=args, tags=tags)
+
     wandb.run.name = f"{'BASELINE_' if args.get('baseline', None) else ''}" \
                      f"-{args['convnet_type']}" \
                      f"-{'pretrained' if args['pretrained'] else 'nopretrained'}" \
