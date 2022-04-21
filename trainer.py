@@ -35,10 +35,11 @@ def _train(args):
 
     wandb.init(project='pycil', config=args)
     wandb.run.name = f"{'BASELINE_' if args.get('baseline', None) else ''}" \
-                     f"{args['convnet_type']}-" \
-                     f"{'pretrained' if args['pretrained'] else 'nopretrained'}-" \
-                     f"drop{args.get('dropout', 0)}" \
-                     f"{'-augmented' if args.get('data_augmentation') else ''}"
+                     f"-{args['convnet_type']}" \
+                     f"-{'pretrained' if args['pretrained'] else 'nopretrained'}" \
+                     f"-drop{args.get('dropout', 0)}" \
+                     f"{'-augmented' if args.get('data_augmentation') else ''}" \
+                     f"{'-onlytop' if args.get('onlytop') else ''}"
     wandb.run.save()
 
     _set_random()
