@@ -28,8 +28,8 @@ weight_decay = 2e-4
 num_workers = 8
 T = 2
 
-init_early_stop_patience = 75
-early_stop_patience = 50
+init_early_stop_patience = 50
+early_stop_patience = 30
 
 
 class DER(BaseLearner):
