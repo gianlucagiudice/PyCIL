@@ -43,7 +43,7 @@ grid_search = [
     # Pretrained
     [True],
     # Dropout rate
-    [0.3]
+    [0.1]
 ]
 grid_search = list(itertools.product(*grid_search))
 
