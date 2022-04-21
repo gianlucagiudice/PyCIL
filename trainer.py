@@ -40,8 +40,8 @@ def _train(args):
 
     wandb.init(project='pycil', config=args, tags=tags)
 
-    wandb.run.name = f"{'BASELINE_' if args.get('baseline', None) else ''}" \
-                     f"-{args['convnet_type']}" \
+    wandb.run.name = f"{'BASELINE_' if args.get('baseline', None) else ''}-" \
+                     f"{args['convnet_type']}" \
                      f"-{'pretrained' if args['pretrained'] else 'nopretrained'}" \
                      f"-drop{args.get('dropout', 0)}" \
                      f"{'-augmented' if args.get('data_augmentation') else ''}" \
