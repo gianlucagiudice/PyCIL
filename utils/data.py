@@ -76,6 +76,7 @@ class iLogoDet3K(iData):
         # Class to index
         self.classes = self.df_cropped['brand'].unique()
         self.class_to_idx = {b: i for i, b in enumerate(self.classes)}
+        self.idx_to_class = {idx: c for c, idx in self.class_to_idx.items()}
         self.class_order = np.arange(0, len(self.classes))
         print(f'Class to idx len: {len(self.class_to_idx.keys())}')
 
@@ -123,6 +124,7 @@ class iLogoDet3K(iData):
         return [final_transformation]
 
     def copy_images(self, dataframe, split):
+        shutil.rmtree(iLogoDet3K.DATASET_PATH / split)
         for _, row in tqdm.tqdm(dataframe.iterrows(), total=len(dataframe)):
             os.makedirs(iLogoDet3K.DATASET_PATH / split / str(self.class_to_idx[row.brand]), exist_ok=True)
             src = iLogoDet3K.DATASET_PATH / 'cropped' / str(row.cropped_image_path)

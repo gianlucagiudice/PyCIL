@@ -109,6 +109,7 @@ class DataManager(object):
         idata.download_data(data_augmentation=data_augmentation)
 
         # Data
+        # TODO: Train + test + validation
         self._train_data, self._train_targets = idata.train_data, idata.train_targets
         self._test_data, self._test_targets = idata.test_data, idata.test_targets
         self.use_path = idata.use_path
@@ -117,6 +118,10 @@ class DataManager(object):
         self._train_trsf = idata.train_trsf
         self._test_trsf = idata.test_trsf
         self._common_trsf = idata.common_trsf
+
+        # Class to idx
+        self._class_to_idx = idata.class_to_idx
+        self._idx_to_class = idata.idx_to_class
 
         # Order
         order = [i for i in range(len(np.unique(self._train_targets)))]
