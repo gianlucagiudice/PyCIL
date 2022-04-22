@@ -168,10 +168,7 @@ def train(args):
     wandb_logger = WandbLogger(project='pycil', name=args['run_name'], tags=['baseline'])
 
     # Datamanger
-    data_manager = DataManager(
-        args['dataset'], args['shuffle'], args['seed'], args['init_cls'],
-        args['increment'], data_augmentation=args['data_augmentation']
-    )
+    data_manager = init_datamanager(args)
     train_loader, val_loader, test_loader = init_data(data_manager, args)
 
     # Training
@@ -192,6 +189,14 @@ def train(args):
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     # Test
     trainer.test(ckpt_path='best', dataloaders=test_loader)
+
+
+def init_datamanager(args):
+    data_manager = DataManager(
+        args['dataset'], args['shuffle'], args['seed'], args['init_cls'],
+        args['increment'], data_augmentation=args['data_augmentation']
+    )
+    return data_manager
 
 
 def init_data(data_manager, args):
