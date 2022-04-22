@@ -37,7 +37,6 @@ class DER(BaseLearner):
     def __init__(self, args):
         super().__init__(args)
         self._network = DERNet(args['convnet_type'], args['pretrained'], dropout=args.get('dropout'))
-        self._training_history = dict()
 
     def after_task(self):
         self._known_classes = self._total_classes
@@ -57,16 +56,30 @@ class DER(BaseLearner):
         logging.info('All params: {}'.format(count_parameters(self._network)))
         logging.info('Trainable params: {}'.format(count_parameters(self._network, True)))
 
-        # TODO: Use test + validation
+        # Train split
         train_dataset = data_manager.get_dataset(
             np.arange(self._known_classes, self._total_classes),
-            source='train', mode='train', appendent=self._get_memory())
-        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-        test_dataset = data_manager.get_dataset(np.arange(0, self._total_classes), source='test', mode='test')
-        self.test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+            source='train', mode='train', appendent=self._get_memory()
+        )
+        self.train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+        # Validation split
+        val_dataset = data_manager.get_dataset(
+            np.arange(0, self._total_classes),
+            source='val', mode='test'
+        )
+        self.val_loader = DataLoader(
+            val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+        # Test split
+        test_dataset = data_manager.get_dataset(
+            np.arange(0, self._total_classes),
+            source='test', mode='test'
+        )
+        self.test_loader = DataLoader(
+            test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         self._network = nn.DataParallel(self._network, self._multiple_gpus)
-        self._train(self.train_loader, self.test_loader)
+        self._train(self.train_loader, self.val_loader)
         self.build_rehearsal_memory(data_manager, self.samples_per_class)
         self._network = self._network.module
 
@@ -77,23 +90,23 @@ class DER(BaseLearner):
             for i in range(self._cur_task):
                 self._network.module.convnets[i].eval()
 
-    def _train(self, train_loader, test_loader):
+    def _train(self, train_loader, validation_loader):
         self._network.to(self._device)
         if self._cur_task == 0:
             optimizer = optim.SGD(filter(lambda p: p.requires_grad, self._network.parameters()), momentum=0.9,
                                   lr=init_lr, weight_decay=init_weight_decay)
             scheduler = optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=init_milestones,
                                                        gamma=init_lr_decay)
-            self._init_train(train_loader, test_loader, optimizer, scheduler)
+            self._init_train(train_loader, validation_loader, optimizer, scheduler)
         else:
             optimizer = optim.SGD(filter(lambda p: p.requires_grad, self._network.parameters()), lr=lrate, momentum=0.9,
                                   weight_decay=weight_decay)
             scheduler = optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
-            self._update_representation(train_loader, test_loader, optimizer, scheduler)
+            self._update_representation(train_loader, validation_loader, optimizer, scheduler)
             self._network.module.weight_align(self._total_classes - self._known_classes)
 
-    def _init_train(self, train_loader, test_loader, optimizer, scheduler, patience=init_early_stop_patience):
-        test_acc_list = []
+    def _init_train(self, train_loader, val_loader, optimizer, scheduler, patience=init_early_stop_patience):
+        val_acc_list = []
         prog_bar = tqdm(range(init_epoch))
 
         # Early stopping
@@ -128,34 +141,33 @@ class DER(BaseLearner):
             scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
-            test_acc = self._compute_accuracy(self._network, test_loader)
+            val_acc = self._compute_accuracy(self._network, val_loader)
 
             # Early stopping
-            if test_acc >= best_test_acc_so_far:
+            if val_acc >= best_test_acc_so_far:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
-                best_test_acc_so_far = test_acc
+                best_test_acc_so_far = val_acc
             else:
                 curr_patience -= 1
 
             info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Test_accy {:.2f}'.format(
-                self._cur_task, epoch + 1, init_epoch, losses / len(train_loader), train_acc, test_acc)
-            test_acc_list.append(test_acc)
+                self._cur_task, epoch + 1, init_epoch, losses / len(train_loader), train_acc, val_acc)
+            val_acc_list.append(val_acc)
 
             prog_bar.set_description(info)
 
             # Wandb
-            wandb.log({f'task{0}/train_acc': train_acc, f'task{0}/test_acc': test_acc, 'epoch': epoch})
+            wandb.log({f'task{0}/train_acc': train_acc, f'task{0}/val_acc': val_acc, 'epoch': epoch})
 
         # Use the best network
         self._network.module = best_network_so_far
 
-        self._training_history[self._cur_task] = test_acc_list
         logging.info(info)
-        logging.info(f'Task {self._cur_task}, Accuracy train history => {test_acc_list}')
+        logging.info(f'Task {self._cur_task}, Accuracy validation history => {val_acc_list}')
 
     def _update_representation(self, train_loader, test_loader, optimizer, scheduler, patience=early_stop_patience):
-        test_acc_list = []
+        val_acc_list = []
         prog_bar = tqdm(range(epochs))
 
         # Early stopping
@@ -200,12 +212,12 @@ class DER(BaseLearner):
             scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
-            test_acc = self._compute_accuracy(self._network, test_loader)
+            val_acc = self._compute_accuracy(self._network, test_loader)
 
-            if test_acc >= best_test_acc_so_far:
+            if val_acc >= best_test_acc_so_far:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
-                best_test_acc_so_far = test_acc
+                best_test_acc_so_far = val_acc
             else:
                 curr_patience -= 1
 
@@ -215,19 +227,18 @@ class DER(BaseLearner):
                    'Train_accy {:.2f}, ' \
                    'Test_accy {:.2f}'\
                 .format(self._cur_task, epoch + 1, epochs, losses / len(train_loader),
-                        losses_clf / len(train_loader), losses_aux / len(train_loader), train_acc, test_acc)
-            test_acc_list.append(test_acc)
+                        losses_clf / len(train_loader), losses_aux / len(train_loader), train_acc, val_acc)
+            val_acc_list.append(val_acc)
 
             prog_bar.set_description(info)
 
             # Wandb
             wandb.log({f'task{self._cur_task}/train_acc': train_acc,
-                       f'task{self._cur_task}/test_acc': test_acc,
+                       f'task{self._cur_task}/val_acc': val_acc,
                        'epoch': epoch})
 
         # Use the best network
         self._network.module = best_network_so_far
 
-        self._training_history[self._cur_task] = test_acc_list
         logging.info(info)
-        logging.info(f'Task {self._cur_task}, Accuracy train history => {test_acc_list}')
+        logging.info(f'Task {self._cur_task}, Accuracy validation history => {val_acc_list}')

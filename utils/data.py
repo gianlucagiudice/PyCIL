@@ -81,27 +81,34 @@ class iLogoDet3K(iData):
         print(f'Class to idx len: {len(self.class_to_idx.keys())}')
 
         # Split df
-        # TODO: Use train and validation separatly
-        train_instances = [Path(x.name) for x in self.train_instances + self.validation_instances]
+        train_instances = [Path(x.name) for x in self.train_instances]
         train_df = self.df_cropped[self.df_cropped['cropped_image_path'].isin(train_instances)]
+
+        validation_instances = [Path(x.name) for x in self.validation_instances]
+        validation_df = self.df_cropped[self.df_cropped['cropped_image_path'].isin(validation_instances)]
 
         test_instances = [Path(x.name) for x in self.test_instances]
         test_df = self.df_cropped[self.df_cropped['cropped_image_path'].isin(test_instances)]
 
         train_dir = iLogoDet3K.DATASET_PATH / 'train'
-        test_dir = iLogoDet3K.DATASET_PATH / 'val'
+        val_dir = iLogoDet3K.DATASET_PATH / 'val'
+        test_dir = iLogoDet3K.DATASET_PATH / 'test'
         os.makedirs(train_dir, exist_ok=True)
+        os.makedirs(val_dir, exist_ok=True)
         os.makedirs(test_dir, exist_ok=True)
 
-        # Copy train images
+        # Copy images
         self.copy_images(train_df, 'train')
-        # Copy test images
-        self.copy_images(test_df, 'val')
+        self.copy_images(validation_df, 'val')
+        self.copy_images(test_df, 'test')
 
+        # Create data loaders
         train_dset = datasets.ImageFolder(train_dir)
+        val_dset = datasets.ImageFolder(val_dir)
         test_dset = datasets.ImageFolder(test_dir)
 
         self.train_data, self.train_targets = split_images_labels(train_dset.imgs)
+        self.val_data, self.val_targets = split_images_labels(val_dset.imgs)
         self.test_data, self.test_targets = split_images_labels(test_dset.imgs)
 
     @staticmethod

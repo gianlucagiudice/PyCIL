@@ -26,12 +26,7 @@ class DataManager(object):
         return self._increments[task]
 
     def get_dataset(self, indices, source, mode, appendent=None, ret_data=False):
-        if source == 'train':
-            x, y = self._train_data, self._train_targets
-        elif source == 'test':
-            x, y = self._test_data, self._test_targets
-        else:
-            raise ValueError('Unknown data source {}.'.format(source))
+        x, y = self.get_split(source)
 
         if mode == 'train':
             trsf = transforms.Compose([*self._train_trsf, *self._common_trsf])
@@ -60,13 +55,19 @@ class DataManager(object):
         else:
             return DummyDataset(data, targets, trsf, self.use_path)
 
-    def get_dataset_with_split(self, indices, source, mode, appendent=None, val_samples_per_class=0):
+    def get_split(self, source):
         if source == 'train':
             x, y = self._train_data, self._train_targets
         elif source == 'test':
             x, y = self._test_data, self._test_targets
+        elif source == 'val':
+            x, y = self._val_data, self._val_targets
         else:
             raise ValueError('Unknown data source {}.'.format(source))
+        return x, y
+
+    def get_dataset_with_split(self, indices, source, mode, appendent=None, val_samples_per_class=0):
+        x, y = self.get_split(source)
 
         if mode == 'train':
             trsf = transforms.Compose([*self._train_trsf, *self._common_trsf])
@@ -109,8 +110,8 @@ class DataManager(object):
         idata.download_data(data_augmentation=data_augmentation)
 
         # Data
-        # TODO: Train + test + validation
         self._train_data, self._train_targets = idata.train_data, idata.train_targets
+        self._val_data, self._val_targets = idata.val_data, idata.val_targets
         self._test_data, self._test_targets = idata.test_data, idata.test_targets
         self.use_path = idata.use_path
 
@@ -135,6 +136,7 @@ class DataManager(object):
 
         # Map indices
         self._train_targets = _map_new_class_index(self._train_targets, self._class_order)
+        self._val_targets = _map_new_class_index(self._val_targets, self._class_order)
         self._test_targets = _map_new_class_index(self._test_targets, self._class_order)
 
     def _select(self, x, y, low_range, high_range):

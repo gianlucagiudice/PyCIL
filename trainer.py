@@ -95,18 +95,6 @@ def _train(args):
 
         wandb.log({'CIL/top1_acc': cnn_accy['top1'], 'CIL/top5_acc': cnn_accy['top5'], 'task': task})
 
-    # Dump training history
-    logging.info('Dumping training hitsory . . .')
-    filename = 'logs/{}_{}_{}_{}_{}_{}_{}_training-history.pickle'.format(
-        args['prefix'], args['seed'], args['model_name'], args['convnet_type'],
-        args['dataset'], args['init_cls'], args['increment'])
-
-    with open(filename, 'wb') as handle:
-        pickle.dump(model._training_history, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    with open(filename, 'rb') as handle:
-        _ = pickle.load(handle)
-
 
 def _set_device(args):
     if torch.cuda.is_available():
