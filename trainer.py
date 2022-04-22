@@ -7,6 +7,8 @@ from utils import factory
 from utils.data_manager import DataManager
 from utils.toolkit import count_parameters
 import wandb
+import numpy as np
+from config import SEED
 
 
 def init_logger(args, dir_path):
@@ -21,6 +23,7 @@ def init_logger(args, dir_path):
             logging.StreamHandler(sys.stdout)
         ]
     )
+
 
 def train(args):
     seed_list = copy.deepcopy(args['seed'])
@@ -118,6 +121,8 @@ def _set_random():
     torch.cuda.manual_seed_all(1)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+    np.random.seed(SEED)
 
 
 def print_args(args):
