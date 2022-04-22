@@ -57,6 +57,7 @@ class DER(BaseLearner):
         logging.info('All params: {}'.format(count_parameters(self._network)))
         logging.info('Trainable params: {}'.format(count_parameters(self._network, True)))
 
+        # TODO: Use test + validation
         train_dataset = data_manager.get_dataset(
             np.arange(self._known_classes, self._total_classes),
             source='train', mode='train', appendent=self._get_memory())

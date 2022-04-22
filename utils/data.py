@@ -80,6 +80,7 @@ class iLogoDet3K(iData):
         print(f'Class to idx len: {len(self.class_to_idx.keys())}')
 
         # Split df
+        # TODO: Use train and validation separatly
         train_instances = [Path(x.name) for x in self.train_instances + self.validation_instances]
         train_df = self.df_cropped[self.df_cropped['cropped_image_path'].isin(train_instances)]
 
