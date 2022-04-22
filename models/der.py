@@ -151,7 +151,7 @@ class DER(BaseLearner):
             else:
                 curr_patience -= 1
 
-            info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Test_accy {:.2f}'.format(
+            info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Val_accy {:.2f}'.format(
                 self._cur_task, epoch + 1, init_epoch, losses / len(train_loader), train_acc, val_acc)
             val_acc_list.append(val_acc)
 
@@ -225,7 +225,7 @@ class DER(BaseLearner):
                    'Loss {:.3f}, Loss_clf {:.3f}, ' \
                    'Loss_aux {:.3f}, ' \
                    'Train_accy {:.2f}, ' \
-                   'Test_accy {:.2f}'\
+                   'Val_accy {:.2f}'\
                 .format(self._cur_task, epoch + 1, epochs, losses / len(train_loader),
                         losses_clf / len(train_loader), losses_aux / len(train_loader), train_acc, val_acc)
             val_acc_list.append(val_acc)
