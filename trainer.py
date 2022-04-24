@@ -37,7 +37,7 @@ def _train(args):
     init_logger(args, 'logs')
 
     # Init tags
-    tags = []
+    tags = ['adam']
     tags += ['baseline'] if args.get('baseline') else ['cil']
     tags += ['onlytop'] if args.get('onlytop') else []
 

@@ -15,7 +15,7 @@ EPSILON = 1e-8
 
 init_epoch = 200
 init_lr = 0.1
-init_milestones = [75, 150, 180]
+init_milestones = [150, 175]
 init_lr_decay = 0.1
 init_weight_decay = 0.0005
 
@@ -93,15 +93,16 @@ class DER(BaseLearner):
     def _train(self, train_loader, validation_loader):
         self._network.to(self._device)
         if self._cur_task == 0:
-            optimizer = optim.SGD(filter(lambda p: p.requires_grad, self._network.parameters()), momentum=0.9,
-                                  lr=init_lr, weight_decay=init_weight_decay)
-            scheduler = optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=init_milestones,
-                                                       gamma=init_lr_decay)
+            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self._network.parameters()),
+                                   lr=init_lr, weight_decay=init_weight_decay)
+            scheduler = optim.lr_scheduler.MultiStepLR(
+                optimizer=optimizer, milestones=init_milestones, gamma=init_lr_decay)
             self._init_train(train_loader, validation_loader, optimizer, scheduler)
         else:
-            optimizer = optim.SGD(filter(lambda p: p.requires_grad, self._network.parameters()), lr=lrate, momentum=0.9,
-                                  weight_decay=weight_decay)
-            scheduler = optim.lr_scheduler.MultiStepLR(optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
+            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self._network.parameters()),
+                                   lr=lrate, weight_decay=weight_decay)
+            scheduler = optim.lr_scheduler.MultiStepLR(
+                optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
             self._update_representation(train_loader, validation_loader, optimizer, scheduler)
             self._network.module.weight_align(self._total_classes - self._known_classes)
 
@@ -225,7 +226,7 @@ class DER(BaseLearner):
                    'Loss {:.3f}, Loss_clf {:.3f}, ' \
                    'Loss_aux {:.3f}, ' \
                    'Train_accy {:.2f}, ' \
-                   'Val_accy {:.2f}'\
+                   'Val_accy {:.2f}' \
                 .format(self._cur_task, epoch + 1, epochs, losses / len(train_loader),
                         losses_clf / len(train_loader), losses_aux / len(train_loader), train_acc, val_acc)
             val_acc_list.append(val_acc)
