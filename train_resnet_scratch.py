@@ -166,7 +166,7 @@ def train(args):
     logging.info(model.resnet)
     logging.info(model.dropout)
     logging.info(model.fc)
-    wandb_logger = WandbLogger(project='pycil', name=args['run_name'], tags=['baseline'])
+    wandb_logger = WandbLogger(project='pycil', name=args['run_name'], tags=['baseline', 'onlytop'])
 
     # Datamanger
     data_manager = init_datamanager(args)
