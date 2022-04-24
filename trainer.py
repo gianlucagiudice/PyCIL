@@ -48,7 +48,8 @@ def _train(args):
                      f"-{'pretrained' if args['pretrained'] else 'nopretrained'}" \
                      f"-drop{args.get('dropout', 0)}" \
                      f"{'-augmented' if args.get('data_augmentation') else ''}" \
-                     f"{'-onlytop' if args.get('onlytop') else ''}"
+                     f"{'-onlytop' if args.get('onlytop') else ''}" \
+                     f"-adam"
     wandb.run.save()
 
     _set_random()
