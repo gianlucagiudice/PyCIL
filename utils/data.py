@@ -130,8 +130,9 @@ class iLogoDet3K(iData):
 
         return [final_transformation]
 
-    def copy_images(self, dataframe, split):
-        shutil.rmtree(iLogoDet3K.DATASET_PATH / split)
+    def copy_images(self, dataframe, split, reset_dir=False):
+        if reset_dir:
+            shutil.rmtree(iLogoDet3K.DATASET_PATH / split)
         for _, row in tqdm.tqdm(dataframe.iterrows(), total=len(dataframe)):
             os.makedirs(iLogoDet3K.DATASET_PATH / split / str(self.class_to_idx[row.brand]), exist_ok=True)
             src = iLogoDet3K.DATASET_PATH / 'cropped' / str(row.cropped_image_path)
