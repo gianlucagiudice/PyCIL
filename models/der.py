@@ -26,7 +26,7 @@ init_early_stop_patience = 40
 # Incremental task
 epochs = 150
 lrate = 0.001
-milestones = [50, 75, 100]
+milestones = [40, 75, 100]
 lrate_decay = 0.1
 batch_size = 2048
 weight_decay = 0
