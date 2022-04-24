@@ -41,7 +41,7 @@ assert 0 <= parsed_args.dropout < 1
 
 
 experiment_args = {
-    "run_name": f"BASELINE-FAIR_resnet152-from_scratch-100_classes{parsed_args.dropout}",
+    "run_name": f"BASELINE-FAIR_resnet152-from_scratch-100_classes-drop{parsed_args.dropout}",
     "prefix": "reproduce",
     "dataset": "LogoDet-3K_cropped",
     "shuffle": True,
