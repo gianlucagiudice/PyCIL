@@ -1,3 +1,4 @@
+import argparse
 import logging
 from typing import Optional, List, Union
 
@@ -18,22 +19,29 @@ import multiprocessing
 
 from torch.nn import functional as F
 
-import pandas as pd
-
 import os
 
 from pathlib import Path
 
 from trainer import _set_random, print_args, init_logger
-from utils.data_manager import DataManager, DummyDataset
+from utils.data_manager import DataManager
 
 import sys
 sys.path.append('../')
 from config import SEED
 
+parser = argparse.ArgumentParser(description='Download LogoDet-3k.')
+
+parser.add_argument('--dropout', type=float, required=True,
+                    help='Dropout rate for fully connected layer.')
+
+parsed_args = parser.parse_args()
+
+assert 0 <= parsed_args.dropout < 1
+
 
 experiment_args = {
-    "run_name": "BASELINE-FAIR_resnet152-from_scratch-100_classes",
+    "run_name": f"BASELINE-FAIR_resnet152-from_scratch-100_classes{parsed_args.dropout}",
     "prefix": "reproduce",
     "dataset": "LogoDet-3K_cropped",
     "shuffle": True,
@@ -44,7 +52,7 @@ experiment_args = {
     "seed": SEED,
 
     # Grid search parameters
-    "dropout": 0.3,
+    "dropout": parsed_args.dropout,
     "convnet_type": None,
     "pretrained": None,
 
@@ -53,7 +61,6 @@ experiment_args = {
 
     # Training
     "batch_size": 128,
-    "validation_fraction": 0.2,
     "max_epoch": 150,
     "patience": 40,
     "checkpoint_path": Path('model_checkpoint'),
@@ -201,31 +208,10 @@ def init_datamanager(args):
 
 
 def init_data(data_manager, args):
-    training_dummy = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='train', mode='train')
-
-    # Split train/val
-    all_train_df = pd.DataFrame(
-        data={
-            'images': training_dummy.images,
-            'labels': training_dummy.labels
-        }
-    )
-    train_ids = all_train_df.groupby('labels').sample(frac=(1-args['validation_fraction']), random_state=SEED).index
-    test_ids = np.array(list(set(all_train_df.index) - set(train_ids)))
-    train_df = all_train_df.loc[train_ids]
-    val_df = all_train_df.loc[test_ids]
-
-    x_train, x_val, y_train, y_val = train_df["images"], val_df["images"], train_df["labels"], val_df["labels"]
-
-    assert x_train.size == train_ids.size
-    assert x_val.size == test_ids.size
-    assert y_train.size == train_ids.size
-    assert y_val.size == test_ids.size
-
     # Create dataset
+    train = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='train', mode='train')
+    val = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='val', mode='test')
     test = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='test', mode='test')
-    train = DummyDataset(x_train.values, y_train.values, training_dummy.trsf, True)
-    val = DummyDataset(x_val.values, y_val.values, test.trsf, True)
 
     # Sanity check
     assert np.unique(train.labels).size == args['init_cls']
