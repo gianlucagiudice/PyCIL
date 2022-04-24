@@ -23,7 +23,7 @@ epochs = 170
 lrate = 0.1
 milestones = [80, 120, 150]
 lrate_decay = 0.1
-batch_size = 1024
+batch_size = 2048
 weight_decay = 2e-4
 num_workers = 8
 T = 2
@@ -95,12 +95,18 @@ class DER(BaseLearner):
         if self._cur_task == 0:
             optimizer = optim.Adam(filter(lambda p: p.requires_grad, self._network.parameters()),
                                    lr=init_lr, weight_decay=init_weight_decay)
+
+            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self._network.parameters()))
+
             scheduler = optim.lr_scheduler.MultiStepLR(
                 optimizer=optimizer, milestones=init_milestones, gamma=init_lr_decay)
             self._init_train(train_loader, validation_loader, optimizer, scheduler)
         else:
             optimizer = optim.Adam(filter(lambda p: p.requires_grad, self._network.parameters()),
                                    lr=lrate, weight_decay=weight_decay)
+
+            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self._network.parameters()))
+
             scheduler = optim.lr_scheduler.MultiStepLR(
                 optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
             self._update_representation(train_loader, validation_loader, optimizer, scheduler)
