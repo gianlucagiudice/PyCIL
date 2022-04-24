@@ -1,4 +1,6 @@
 import logging
+import multiprocessing
+
 import numpy as np
 from tqdm import tqdm
 import torch
@@ -13,23 +15,25 @@ import wandb
 
 EPSILON = 1e-8
 
+# Init task
 init_epoch = 200
-init_lr = 0.1
-init_milestones = [150, 175]
+init_lr = 0.001
+init_milestones = [60, 100, 150]
 init_lr_decay = 0.1
-init_weight_decay = 0.0005
+init_weight_decay = 0
+init_early_stop_patience = 40
 
-epochs = 170
-lrate = 0.1
-milestones = [80, 120, 150]
+# Incremental task
+epochs = 150
+lrate = 0.001
+milestones = [50, 75, 100]
 lrate_decay = 0.1
 batch_size = 2048
-weight_decay = 2e-4
-num_workers = 8
-T = 2
-
-init_early_stop_patience = 40
+weight_decay = 0
 early_stop_patience = 30
+
+num_workers = multiprocessing.cpu_count()
+T = 2
 
 
 class DER(BaseLearner):
