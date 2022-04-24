@@ -55,7 +55,7 @@ experiment_args = {
     "batch_size": 128,
     "validation_fraction": 0.2,
     "max_epoch": 150,
-    "patience": 30,
+    "patience": 40,
     "checkpoint_path": Path('model_checkpoint'),
 
 }
@@ -63,7 +63,7 @@ experiment_args = {
 
 class Model(LightningModule):
 
-    def __init__(self, args, model=None, lr=1e-3, gamma=0.7, batch_size=experiment_args['batch_size']):
+    def __init__(self, args, model=None, lr=1e-3, batch_size=experiment_args['batch_size']):
         super().__init__()
         # Save args
         self.args = args
@@ -147,8 +147,9 @@ class Model(LightningModule):
         self.logger.log_metrics({'CIL/top1_acc': self.test_acc * 100, 'task': 0})
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        return optimizer
+        optimizer = torch.optim.Adam(self.parameters())
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[40, 80, 100], gamma=0.1)
+        return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
 
 def train(args):
