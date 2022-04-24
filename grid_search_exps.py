@@ -9,6 +9,9 @@ parser = argparse.ArgumentParser(description='Grid search for experiments.')
 parser.add_argument('--baseline', action=argparse.BooleanOptionalAction,
                     help='Gridsearch for baseline.', required=True)
 
+parser.add_argument('--grid-ids', nargs="+", type=int, default=None,
+                    help='Gridsearch ids.', required=False)
+
 args = parser.parse_args()
 
 config_dict = {
@@ -32,7 +35,9 @@ config_dict = {
 
     "onlytop": True,
     # Baseline method?
-    "baseline": args.baseline
+    "baseline": args.baseline,
+
+    "grid_search_ids": args.grid_ids
 }
 
 
@@ -48,10 +53,18 @@ grid_search = [
 ]
 grid_search = list(itertools.product(*grid_search))
 
+grid_search_ids = config_dict['grid_search_ids']
+if not grid_search_ids:
+    grid_search_ids = list(range(1, len(grid_search) + 1))
+
 subprocess.run('ulimit -n 2048', shell=True)
-for (i, element) in enumerate(grid_search):
+for (i, element) in enumerate(grid_search, 1):
+    # Process only ids
+    if i not in grid_search_ids:
+        continue
+
     # Print grid search info
-    print(f'{"=" * 20} Grid search {i+1}/{len(grid_search)} {"=" * 20}')
+    print(f'{"=" * 20} Grid search {i}/{len(grid_search)} {"=" * 20}')
 
     # Unpack gridsearch
     architecture, pretrained, dropout = element
