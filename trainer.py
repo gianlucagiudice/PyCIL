@@ -37,7 +37,8 @@ def _train(args):
     init_logger(args, 'logs')
 
     # Init tags
-    tags = ['adam']
+    tags = []
+    tags += ['adam'] if args.get('adam') else []
     tags += ['baseline'] if args.get('baseline') else ['cil']
     tags += ['onlytop'] if args.get('onlytop') else []
 
@@ -49,7 +50,7 @@ def _train(args):
                      f"-drop{args.get('dropout', 0)}" \
                      f"{'-augmented' if args.get('data_augmentation') else ''}" \
                      f"{'-onlytop' if args.get('onlytop') else ''}" \
-                     f"-adam"
+                     f"{'-adam' if args.get('adam') else ''}"
     wandb.run.save()
 
     _set_random()

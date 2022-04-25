@@ -33,7 +33,12 @@ config_dict = {
     "convnet_type": None,
     "pretrained": None,
 
+    # Adam optimizer
+    "adam": True,
+
+    # Only top classes
     "onlytop": True,
+
     # Baseline method?
     "baseline": args.baseline,
 
