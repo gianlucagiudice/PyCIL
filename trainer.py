@@ -3,6 +3,9 @@ import sys
 import logging
 import copy
 import torch
+from pathlib import Path
+import os
+
 from utils import factory
 from utils.data_manager import DataManager
 from utils.toolkit import count_parameters
@@ -96,6 +99,15 @@ def _train(args):
             logging.info('CNN top5 curve: {}\n'.format(cnn_curve['top5']))
 
         wandb.log({'CIL/top1_acc': cnn_accy['top1'], 'CIL/top5_acc': cnn_accy['top5'], 'task': task})
+
+    logging.info('Saving the model . . .')
+    PYCIL_PATH = Path(__file__).parent.resolve()
+    os.makedirs(PYCIL_PATH / 'model_checkpoint', exist_ok=True)
+    model_path = PYCIL_PATH / 'model_checkpoint' / f'{wandb.run.name}.pt'
+
+    torch.save(model._network, model_path)
+    res = wandb.save(str(model_path))
+    assert res is not None
 
 
 def _set_device(args):
