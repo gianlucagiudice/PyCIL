@@ -1,5 +1,5 @@
 {
-    "run_name": "resnet34_pretrained_drop=0.3",
+    "run_name": "resnet34-pretrained-drop0.5-augmented-onlytop-adam",
     "prefix": "reproduce",
     "dataset": "LogoDet-3K_cropped",
     "memory_size": 2000,
@@ -12,10 +12,13 @@
     "data_augmentation": true,
     "seed": [830694],
 
-
-    "dropout": 0.3,
+    "dropout": 0.5,
     "convnet_type": "resnet34",
     "pretrained": true,
+
+    "adam": true,
+
+    "onlytop": true,
 
     "baseline": false
 }
