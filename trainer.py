@@ -100,12 +100,25 @@ def _train(args):
 
         wandb.log({'CIL/top1_acc': cnn_accy['top1'], 'CIL/top5_acc': cnn_accy['top5'], 'task': task})
 
+    # Save the model
     logging.info('Saving the model . . .')
     PYCIL_PATH = Path(__file__).parent.resolve()
     os.makedirs(PYCIL_PATH / 'model_checkpoint', exist_ok=True)
     model_path = PYCIL_PATH / 'model_checkpoint' / f'{wandb.run.name}.pt'
 
-    torch.save(model._network, model_path)
+    # Create dict
+    model_dict = {
+        'dropout_rate': model._network.dropout.p,
+        'pretrained':  model._network.pretrained,
+        'convnet_type': model._network.convnet_type,
+        'task_sizes': model._network.task_sizes,
+        'feature_dim': model._network.feature_dim,
+        'out_dim': model._network.out_dim,
+        'state_dict': model._network.state_dict(),
+    }
+    # Dump dict
+    torch.save(model_dict, model_path)
+    # Attach dumped file to wandb run
     res = wandb.save(str(model_path))
     assert res is not None
 
