@@ -105,6 +105,7 @@ def _train(args):
     PYCIL_PATH = Path(__file__).parent.resolve()
     os.makedirs(PYCIL_PATH / 'model_checkpoint', exist_ok=True)
     model_path = PYCIL_PATH / 'model_checkpoint' / f'{wandb.run.name}.pt'
+    model_path.unlink(missing_ok=True)
 
     # Create dict
     model_dict = {
