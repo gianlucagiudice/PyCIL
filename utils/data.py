@@ -13,6 +13,7 @@ PROJECT_ROOT_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), '..
 sys.path.append(PROJECT_ROOT_PATH)
 
 from config import METADATA_CROPPED_IMAGE_PATH, DATASET_PATH, LOGODET_3K_NORMAL_PATH
+from pycil.utils.transformations import iLogoDet3K_trsf
 
 
 class iData(object):
@@ -49,13 +50,9 @@ def read_df_cropped_logodet3k(dataset_dir, root=f'../{DATASET_PATH}'):
 class iLogoDet3K(iData):
     use_path = True
 
-    train_trsf = []
-    test_trsf = []
-
-    common_trsf = [
-        transforms.Resize((32, 32)),
-        transforms.ToTensor(),
-    ]
+    train_trsf = iLogoDet3K_trsf['train']
+    test_trsf = iLogoDet3K_trsf['test']
+    common_trsf = iLogoDet3K_trsf['common']
 
     class_order = None
 
