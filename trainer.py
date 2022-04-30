@@ -122,7 +122,10 @@ def _train(args):
     # Attach dumped file to wandb run
     res = wandb.save(str(model_path))
     assert res is not None
-
+    # Create artifact
+    artifact = wandb.Artifact('model', type='model')
+    artifact.add_file(str(model_path))
+    wandb.log_artifact(artifact)
 
 def _set_device(args):
     if torch.cuda.is_available():
