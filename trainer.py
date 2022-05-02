@@ -117,7 +117,7 @@ def _train(args):
         'out_dim': model._network.out_dim,
         'state_dict': model._network.state_dict(),
         'class_remap': data_manager._class_order,
-        'test_dest_idx': {int(k): v for k, v in data_manager._test_dest_idx.items()},
+        #'test_dest_idx': {int(k): v for k, v in data_manager._test_dest_idx.items()},
         'cil_class2idx': data_manager._class_to_idx,
         'cil_idx2class': data_manager._idx_to_class,
         'cil_output2folder': model.target2folder
