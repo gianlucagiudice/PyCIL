@@ -112,10 +112,10 @@ class BaseLearner(object):
 
         return np.around(tensor2numpy(correct)*100 / total, decimals=2)
 
-    def _eval_cnn(self, loader, _):
+    def _eval_cnn(self, loader):
         self._network.eval()
         y_pred, y_true = [], []
-        for _, (_, inputs, targets) in enumerate(loader):
+        for _, (_, inputs, targets, _) in enumerate(loader):
             inputs = inputs.to(self._device)
             with torch.no_grad():
                 outputs = self._network(inputs)['logits']
