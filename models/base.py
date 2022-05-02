@@ -102,7 +102,7 @@ class BaseLearner(object):
     def _compute_accuracy(self, model, loader):
         model.eval()
         correct, total = 0, 0
-        for i, (_, inputs, targets) in enumerate(loader):
+        for i, (_, inputs, targets, _) in enumerate(loader):
             inputs = inputs.to(self._device)
             with torch.no_grad():
                 outputs = model(inputs)['logits']
@@ -112,7 +112,7 @@ class BaseLearner(object):
 
         return np.around(tensor2numpy(correct)*100 / total, decimals=2)
 
-    def _eval_cnn(self, loader):
+    def _eval_cnn(self, loader, _):
         self._network.eval()
         y_pred, y_true = [], []
         for _, (_, inputs, targets) in enumerate(loader):
@@ -138,7 +138,7 @@ class BaseLearner(object):
     def _extract_vectors(self, loader):
         self._network.eval()
         vectors, targets = [], []
-        for _, _inputs, _targets in loader:
+        for _, _inputs, _targets, _ in loader:
             _targets = _targets.numpy()
             if isinstance(self._network, nn.DataParallel):
                 _vectors = tensor2numpy(self._network.module.extract_vector(_inputs.to(self._device)))

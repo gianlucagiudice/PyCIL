@@ -12,6 +12,8 @@ from models.base import BaseLearner
 from utils.inc_net import DERNet, IncrementalNet
 from utils.toolkit import count_parameters, target2onehot, tensor2numpy
 import wandb
+from pathlib import Path
+
 
 EPSILON = 1e-8
 
@@ -41,6 +43,7 @@ class DER(BaseLearner):
     def __init__(self, args):
         super().__init__(args)
         self._network = DERNet(args['convnet_type'], args['pretrained'], dropout=args.get('dropout'))
+        self.target2folder = dict()
 
     def after_task(self):
         self._known_classes = self._total_classes
@@ -130,7 +133,13 @@ class DER(BaseLearner):
             self.train()
             losses = 0.
             correct, total = 0, 0
-            for i, (_, inputs, targets) in enumerate(train_loader):
+            for i, (_, inputs, targets, path) in enumerate(train_loader):
+
+                # Todo: Remove
+                my_dict = {int(t): int(Path(d).parts[-2]) for d, t in zip(path, targets)}
+                for k, v in my_dict.items():
+                    self.target2folder[k] = v
+
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
                 logits = self._network(inputs)['logits']
 
@@ -193,7 +202,13 @@ class DER(BaseLearner):
             losses_clf = 0.
             losses_aux = 0.
             correct, total = 0, 0
-            for i, (_, inputs, targets) in enumerate(train_loader):
+            for i, (_, inputs, targets, path) in enumerate(train_loader):
+
+                # Todo: Remove
+                my_dict = {int(t): int(Path(d).parts[-2]) for d, t in zip(path, targets)}
+                for k, v in my_dict.items():
+                    self.target2folder[k] = v
+
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
                 outputs = self._network(inputs)
                 logits, aux_logits = outputs["logits"], outputs["aux_logits"]

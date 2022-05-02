@@ -116,7 +116,23 @@ def _train(args):
         'feature_dim': model._network.feature_dim,
         'out_dim': model._network.out_dim,
         'state_dict': model._network.state_dict(),
+        'class_remap': data_manager._class_order,
+        'test_dest_idx': {int(k): v for k, v in data_manager._test_dest_idx.items()},
+        'cil_class2idx': data_manager._class_to_idx,
+        'cil_idx2class': data_manager._idx_to_class,
+        'cil_output2folder': model.target2folder
     }
+
+    # TODO: Remove
+    model_whole_path = 'whole_der.pt'
+    torch.save(model, model_whole_path)
+    wandb.save(model_whole_path)
+
+    model_whole_path = 'whole_der_net.pt'
+    torch.save(model._network, model_whole_path)
+    wandb.save(model_whole_path)
+
+
     # Dump dict
     torch.save(model_dict, model_path)
     # Attach dumped file to wandb run
@@ -126,6 +142,7 @@ def _train(args):
     artifact = wandb.Artifact('model', type='model')
     artifact.add_file(str(model_path))
     wandb.log_artifact(artifact)
+
 
 def _set_device(args):
     if torch.cuda.is_available():
