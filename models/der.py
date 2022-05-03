@@ -23,7 +23,7 @@ init_lr = 0.001
 init_milestones = [60, 100, 150]
 init_lr_decay = 0.1
 init_weight_decay = 0
-init_early_stop_patience = 30
+init_early_stop_patience = 40
 
 # Incremental task
 epochs = 150
@@ -32,7 +32,7 @@ milestones = [40, 75, 100]
 lrate_decay = 0.1
 batch_size = 2048
 weight_decay = 0
-early_stop_patience = 20
+early_stop_patience = 30
 
 num_workers = multiprocessing.cpu_count()
 T = 2
