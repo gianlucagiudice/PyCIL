@@ -75,7 +75,7 @@ class iLogoDet3K(iData):
         self.class_to_idx = {b: i for i, b in enumerate(self.classes)}
         self.idx_to_class = {idx: c for c, idx in self.class_to_idx.items()}
         self.class_order = np.arange(0, len(self.classes))
-        print(f'Class to idx len: {len(self.class_to_idx.keys())}')
+        print(f'N classes: {len(self.classes)}')
 
         # Split df
         train_instances = [Path(x.name) for x in self.train_instances]
