@@ -164,7 +164,7 @@ class DummyDataset(Dataset):
         # Apply transformations
         image = self.trsf(image)
 
-        return idx, image, self.labels[idx], self.images[idx]
+        return idx, image, self.labels[idx]
 
 
 def _map_new_class_index(y, order):
