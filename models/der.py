@@ -28,12 +28,11 @@ epochs = 150
 lrate = 0.001
 milestones = [40, 75, 100]
 lrate_decay = 0.1
-batch_size = 2048
 weight_decay = 0
 early_stop_patience = 30
 
 num_workers = multiprocessing.cpu_count()
-T = 2
+batch_size = 1024
 
 
 class DER(BaseLearner):
