@@ -60,7 +60,7 @@ experiment_args = {
     "baseline": True,
 
     # Training
-    "batch_size": 128,
+    "batch_size": 64,
     "max_epoch": 150,
     "patience": 40,
     "checkpoint_path": Path('model_checkpoint'),
