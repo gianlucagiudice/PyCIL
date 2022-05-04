@@ -151,7 +151,7 @@ class DER(BaseLearner):
             val_acc = self._compute_accuracy(self._network, val_loader)
 
             # Early stopping
-            if val_acc > best_test_acc_so_far:
+            if val_acc >= best_test_acc_so_far:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
                 best_test_acc_so_far = val_acc
@@ -221,7 +221,7 @@ class DER(BaseLearner):
 
             val_acc = self._compute_accuracy(self._network, test_loader)
 
-            if val_acc > best_test_acc_so_far:
+            if val_acc >= best_test_acc_so_far:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
                 best_test_acc_so_far = val_acc
