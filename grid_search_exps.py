@@ -12,6 +12,10 @@ parser.add_argument('--baseline', action=argparse.BooleanOptionalAction,
 parser.add_argument('--grid-ids', nargs="+", type=int, default=None,
                     help='Gridsearch ids.', required=False)
 
+
+parser.add_argument('--interactive', action=argparse.BooleanOptionalAction,
+                    help='Gridsearch for baseline.', required=False, default=False)
+
 args = parser.parse_args()
 
 config_dict = {
@@ -54,13 +58,20 @@ grid_search = [
     # Pretrained
     [True, False],
     # Dropout rate
-    [0.1, 0.3, 0.5]
+    [0.5, 0.3, 0.1]
 ]
 grid_search = list(itertools.product(*grid_search))
 
 grid_search_ids = config_dict['grid_search_ids']
 if not grid_search_ids:
     grid_search_ids = list(range(1, len(grid_search) + 1))
+
+if args.interactive:
+    for i, x in enumerate(grid_search, 1):
+        print(f'{i}) {x}')
+    ids = input('Insert grid search ids: ')
+    grid_search_ids = [int(i) for i in ids.split()]
+
 
 subprocess.run('ulimit -n 2048', shell=True)
 for (i, element) in enumerate(grid_search, 1):
