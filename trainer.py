@@ -119,6 +119,8 @@ def _train(args):
 
         'cil_class2idx': data_manager._class_to_idx,
         'cil_idx2class': data_manager._idx_to_class,
+
+        'cil_prediction2folder': map_prediction2folder(data_manager)
     }
 
     # Dump dict
@@ -130,6 +132,12 @@ def _train(args):
     artifact = wandb.Artifact(wandb.run.name, type='model')
     artifact.add_file(str(model_path))
     wandb.log_artifact(artifact)
+
+
+def map_prediction2folder(data_manager):
+    loader = data_manager.get_dataset(np.arange(0, len(data_manager._class_order)), source='test', mode='test')
+    remap = {y: int(Path(path).parts[-2]) for y, path in zip(loader.labels, loader.images)}
+    return remap
 
 
 def _set_device(args):
