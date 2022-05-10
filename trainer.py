@@ -36,6 +36,13 @@ def train(args):
 
 
 def _train(args):
+    # Init data manager
+    data_manager = DataManager(
+        args['dataset'], args['shuffle'], args['seed'], args['init_cls'],
+        args['increment'], args.get('data_augmentation', False)
+    )
+
+    # Init logger
     init_logger(args, 'logs')
 
     # Init tags
@@ -44,10 +51,12 @@ def _train(args):
     tags += ['baseline'] if args.get('baseline') else ['cil']
     tags += ['onlytop'] if args.get('onlytop') else []
 
+    # Init weights and biases
     wandb.init(project='pycil', config=args, tags=tags)
 
     wandb.run.name = f"{'BASELINE-' if args.get('baseline', None) else ''}" \
-                     f"{args['convnet_type']}" \
+                     f"CIL_{args['init_cls']}_{args['increment']}_{len(data_manager._class_order)}" \
+                     f"-{args['convnet_type']}" \
                      f"-{'pretrained' if args['pretrained'] else 'nopretrained'}" \
                      f"-drop{args.get('dropout', 0)}" \
                      f"{'-augmented' if args.get('data_augmentation') else ''}" \
@@ -59,10 +68,7 @@ def _train(args):
     _set_device(args)
 
     print_args(args)
-    data_manager = DataManager(
-        args['dataset'], args['shuffle'], args['seed'], args['init_cls'],
-        args['increment'], args.get('data_augmentation', False)
-    )
+
     model = factory.get_model(args['model_name'], args)
 
     cnn_curve, nme_curve = {'top1': [], 'top5': []}, {'top1': [], 'top5': []}
