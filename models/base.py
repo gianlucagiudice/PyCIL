@@ -151,7 +151,7 @@ class BaseLearner(object):
         return np.concatenate(vectors), np.concatenate(targets)
 
     def _reduce_exemplar(self, data_manager, m):
-        logging.info('Reducing exemplars...({} per classes)'.format(m))
+        logging.info('Reducing exemplars...({} per class)'.format(m))
         dummy_data, dummy_targets = copy.deepcopy(self._data_memory), copy.deepcopy(self._targets_memory)
         self._class_means = np.zeros((self._total_classes, self.feature_dim))
         self._data_memory, self._targets_memory = np.array([]), np.array([])
@@ -173,7 +173,7 @@ class BaseLearner(object):
             self._class_means[class_idx, :] = mean
 
     def _construct_exemplar(self, data_manager, m):
-        logging.info('Constructing exemplars...({} per classes)'.format(m))
+        logging.info('Constructing exemplars...({} per class)'.format(m))
         for class_idx in range(self._known_classes, self._total_classes):
             data, targets, idx_dataset = data_manager.get_dataset(np.arange(class_idx, class_idx+1), source='train',
                                                                   mode='test', ret_data=True)
@@ -216,7 +216,7 @@ class BaseLearner(object):
             self._class_means[class_idx, :] = mean
 
     def _construct_exemplar_unified(self, data_manager, m):
-        logging.info('Constructing exemplars for new classes...({} per classes)'.format(m))
+        logging.info('Constructing exemplars for new classes...({} per class)'.format(m))
         _class_means = np.zeros((self._total_classes, self.feature_dim))
 
         # Calculate the means of old classes with newly trained network
