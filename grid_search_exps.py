@@ -68,6 +68,8 @@ grid_search_path = "exps/CIL_LogoDet-3k_grid_search.json"
 grid_search = [
     # Dropout rate
     [0.5, 0.3, 0.1],
+    # Memory per class,
+    [50, 100]
     # Pretrained
     [True]
 ]
@@ -94,7 +96,7 @@ for (i, element) in enumerate(grid_search, 1):
     print(f'{"=" * 20} Grid search {i}/{len(grid_search)} {"=" * 20}')
 
     # Unpack gridsearch
-    dropout, _ = element
+    dropout, memory_per_class, _ = element
     architecture = config_dict['convnet_type']
     pretrained = config_dict['pretrained']
 
@@ -107,6 +109,7 @@ for (i, element) in enumerate(grid_search, 1):
     config_dict_temp['convnet_type'] = architecture
     config_dict_temp['pretrained'] = pretrained
     config_dict_temp['dropout'] = dropout
+    config_dict_temp['memory_per_class'] = memory_per_class
 
     # Generate temp config file
     with open(grid_search_path, "w") as outfile:
