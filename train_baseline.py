@@ -1,5 +1,6 @@
 import argparse
 import logging
+from abc import abstractmethod
 from typing import Optional, List, Union
 
 import numpy as np
@@ -14,9 +15,6 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
-
-from models.der import DERNet
-
 import torch
 import multiprocessing
 
@@ -26,6 +24,7 @@ import os
 
 from pathlib import Path
 
+from pycil.utils.inc_net import DERNet
 from trainer import _set_random, print_args, init_logger
 from utils.data_manager import DataManager
 
@@ -33,45 +32,61 @@ import sys
 sys.path.append('../')
 from config import SEED
 
-parser = argparse.ArgumentParser(description='Train baseline.')
+parser = argparse.ArgumentParser(description='Download LogoDet-3k.')
 
 parser.add_argument('--dropout', type=float, required=True,
                     help='Dropout rate for fully connected layer.')
 
+parser.add_argument('--baseline-type', type=str, required=True, choices=['resnet152', 'der'],
+                    help='Dropout rate for fully connected layer.')
+
+parser.add_argument('--init-cls', type=int, required=True, default=None,
+                    help='Dropout rate for fully connected layer.')
+
+parser.add_argument('--increment-cls', type=int, required=True, default=None,
+                    help='Dropout rate for fully connected layer.')
+
+parser.add_argument('--n-tasks', type=int, required=False, default=None,
+                    help='Dropout rate for fully connected layer.')
+
 parsed_args = parser.parse_args()
+
+if parsed_args.baseline_type == 'der':
+    assert parsed_args.n_tasks is not None, 'Error: Set the number CIL tasks'
 
 assert 0 <= parsed_args.dropout < 1
 
 
 experiment_args = {
-    "run_name": f"BASELINE-DER-100_classes-drop{parsed_args.dropout}",
+    "run_name": f"BASELINE-{parsed_args.baseline_type}-from_scratch-100_classes-drop{parsed_args.dropout}",
     "prefix": "reproduce",
     "dataset": "LogoDet-3K_cropped",
     "shuffle": True,
-    "init_cls": 100,
-    "increment": 10,
     "model_name": "der",
     "data_augmentation": True,
     "seed": SEED,
 
     # Grid search parameters
     "dropout": parsed_args.dropout,
-    "convnet_type": 'resnet32',
-    "pretrained": None,
+    "convnet_type": 'resnet34',
+    "pretrained": True,
 
     # Baseline method?
     "baseline": True,
+    "init_cls": parsed_args.init_cls,
+    "increment": parsed_args.increment_cls,
+    "n_tasks": parsed_args.n_tasks,
 
     # Training
     "batch_size": 64,
     "max_epoch": 150,
     "patience": 40,
+    "early_stopping_delta": 0.01,
     "checkpoint_path": Path('model_checkpoint'),
-
 }
 
 
-class Model(LightningModule):
+class BaselineModel(LightningModule):
 
     def __init__(self, args, model=None, lr=1e-3, batch_size=experiment_args['batch_size']):
         super().__init__()
@@ -84,36 +99,15 @@ class Model(LightningModule):
         self.best_val_acc = 0
         self.test_acc = None
         # Define network backbone
-        self.backbone = self.init_der_network(30, 10, 7)
-        '''
-        self.dropout = torch.nn.Dropout(self.args['dropout']) if self.args['dropout'] else None
-        self.fc = torch.nn.Linear(
-            in_features=self.resnet.fc.in_features,
-            out_features=self.args['init_cls']
-        )
-        assert self.fc.out_features == args['init_cls']
-        '''
+        self.init_network()
 
-    def init_der_network(self, init_cls, increment_cls, tasks):
-        model_cil = DERNet(experiment_args['convnet_type'],
-                           experiment_args['pretrained'],
-                           dropout=experiment_args.get('dropout'))
+    @abstractmethod
+    def init_network(self):
+        pass
 
-        for task, n_update in enumerate(np.cumsum([init_cls] + [increment_cls] * tasks)):
-            print(n_update)
-            model_cil.update_fc(n_update)
-            if task > 0:
-                for i in range(task):
-                    for p in model_cil.convnets[i].parameters():
-                        p.requires_grad = True
-
-        model_cil.train()
-
-        return model_cil
-
-    def forward(self, x):
-        out = self.backbone(x)
-        return out['logits']
+    @abstractmethod
+    def info(self):
+        pass
 
     def training_step(self, batch, batch_idx):
         loss, train_acc = self._step_helper(batch)
@@ -164,6 +158,78 @@ class Model(LightningModule):
         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
 
+class BaselineResnet152(BaselineModel):
+
+    def init_network(self):
+        self.resnet = torchvision.models.resnet152(pretrained=True)
+        self.dropout = torch.nn.Dropout(self.args['dropout']) if self.args['dropout'] else None
+        self.fc = torch.nn.Linear(
+            in_features=self.resnet.fc.in_features,
+            out_features=self.args['init_cls']
+        )
+
+    def forward(self, x):
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+
+        x = self.resnet.layer1(x)
+        x = self.resnet.layer2(x)
+        x = self.resnet.layer3(x)
+        x = self.resnet.layer4(x)
+
+        x = self.resnet.avgpool(x)
+        x = torch.flatten(x, 1)
+
+        if self.dropout:
+            x = self.dropout(x)
+
+        x = self.fc(x)
+
+        return x
+
+    def info(self):
+        logging.info(self.resnet)
+        logging.info(self.dropout)
+        logging.info(self.fc)
+
+
+class DerBaseline(BaselineModel):
+
+    def init_network(self):
+        init_cls = self.args["init_cls"]
+        increment_cls = self.args["increment"]
+        tasks = self.args["n_tasks"]
+
+        model_cil = DERNet(experiment_args['convnet_type'],
+                           experiment_args['pretrained'],
+                           dropout=experiment_args.get('dropout'))
+
+        for task, n_update in enumerate(np.cumsum([init_cls] + [increment_cls] * tasks)):
+            print(n_update)
+            model_cil.update_fc(n_update)
+            if task > 0:
+                for i in range(task):
+                    for p in model_cil.convnets[i].parameters():
+                        p.requires_grad = True
+
+        model_cil.train()
+
+        self.backbone = model_cil
+
+    def forward(self, x):
+        out = self.backbone(x)
+        return out['logits']
+
+    def info(self):
+        logging.info(self.backbone)
+        n_parameters_convnets = sum([x.numel() for x in self.backbone.convnets.parameters()])
+        n_parameters_fc = sum([x.numel() for x in self.backbone.fc.parameters()])
+
+        logging.info(f"Total number of parameters: {n_parameters_convnets + n_parameters_fc}")
+
+
 def train(args):
     # Init logger
     init_logger(args, 'logs')
@@ -173,11 +239,13 @@ def train(args):
     print_args(args)
 
     # Model
-    model = Model(args)
+    if parsed_args.baseline_type == 'resnet152':
+        model = BaselineResnet152(args)
+    elif parsed_args.baseline_type == 'der':
+        model = DerBaseline(args)
+
     logging.info('Network architecture')
-    logging.info(model.backbone)
-    #logging.info(model.dropout)
-    #logging.info(model.fc)
+    model.info()
     wandb_logger = WandbLogger(project='pycil', name=args['run_name'], tags=['baseline', 'onlytop'])
 
     # Datamanger
@@ -191,7 +259,7 @@ def train(args):
         logger=wandb_logger,
         callbacks=[
             # Early stopping
-            EarlyStopping(monitor="val_acc", min_delta=0.00, patience=args['patience'],
+            EarlyStopping(monitor="val_acc", min_delta=args['early_stopping_delta'], patience=args['patience'],
                           verbose=True, mode="max"),
             # Model Checkpoint
             ModelCheckpoint(dirpath=args['checkpoint_path'], filename='best',
