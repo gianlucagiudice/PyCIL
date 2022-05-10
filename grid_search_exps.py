@@ -69,7 +69,7 @@ grid_search = [
     # Dropout rate
     [0.5, 0.3, 0.1],
     # Memory per class,
-    [50, 100]
+    [50, 100],
     # Pretrained
     [True]
 ]
