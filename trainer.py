@@ -36,14 +36,14 @@ def train(args):
 
 
 def _train(args):
+    # Init logger
+    init_logger(args, 'logs')
+
     # Init data manager
     data_manager = DataManager(
         args['dataset'], args['shuffle'], args['seed'], args['init_cls'],
         args['increment'], args.get('data_augmentation', False)
     )
-
-    # Init logger
-    init_logger(args, 'logs')
 
     # Init tags
     tags = []
@@ -56,6 +56,7 @@ def _train(args):
 
     wandb.run.name = f"{'BASELINE-' if args.get('baseline', None) else ''}" \
                      f"CIL_{args['init_cls']}_{args['increment']}_{len(data_manager._class_order)}" \
+                     f"-mem{args['memory_per_class']}" \
                      f"-{args['convnet_type']}" \
                      f"-{'pretrained' if args['pretrained'] else 'nopretrained'}" \
                      f"-drop{args.get('dropout', 0)}" \
