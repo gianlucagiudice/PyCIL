@@ -24,7 +24,7 @@ import os
 
 from pathlib import Path
 
-from pycil.utils.inc_net import DERNet
+from utils.inc_net import DERNet
 from trainer import _set_random, print_args, init_logger
 from utils.data_manager import DataManager
 
