@@ -50,6 +50,9 @@ parser.add_argument('--n-tasks', type=int, required=False, default=None,
 parser.add_argument('--batch', type=int, required=False, default=64,
                     help='Batch size.')
 
+parser.add_argument('--epochs', type=int, required=False, default=150,
+                    help='Number of maximum training epochs.')
+
 parsed_args = parser.parse_args()
 
 if parsed_args.baseline_type == 'der':
@@ -80,9 +83,9 @@ experiment_args = {
 
     # Training
     "batch_size": parsed_args.batch,
-    "max_epoch": 150,
+    "max_epoch": parsed_args.epochs,
     "patience": 40,
-    "early_stopping_delta": 0.01,
+    "early_stopping_delta": 0.00,
     "checkpoint_path": Path('model_checkpoint'),
 }
 
@@ -263,14 +266,17 @@ def train(args):
             EarlyStopping(monitor="val_acc", min_delta=args['early_stopping_delta'], patience=args['patience'],
                           verbose=True, mode="max"),
             # Model Checkpoint
-            ModelCheckpoint(dirpath=args['checkpoint_path'], filename='best',
+            ModelCheckpoint(dirpath=args['checkpoint_path'], filename=args['run_name'],
                             monitor='val_acc', save_top_k=1, mode='max', verbose=True)
         ]
     )
     # Train
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     # Test
-    trainer.test(ckpt_path=args['run_name'], dataloaders=test_loader)
+    trainer.test(
+        ckpt_path=Path(args['checkpoint_path']) / f"{args['run_name']}.ckpt",
+        dataloaders=test_loader
+    )
 
 
 def init_datamanager(args):
@@ -310,7 +316,7 @@ def init_dataloader(split, batch_size):
 def main(args):
     # Create checkpoint directory
     os.makedirs(args['checkpoint_path'], exist_ok=True)
-    Path(args['checkpoint_path'] / 'best.ckpt').unlink(missing_ok=True)
+    Path(args['checkpoint_path'] / args['run_name']).unlink(missing_ok=True)
     # Train the model
     train(args)
 
