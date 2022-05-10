@@ -47,7 +47,7 @@ parser.add_argument('--increment-cls', type=int, required=True, default=None,
 parser.add_argument('--n-tasks', type=int, required=False, default=None,
                     help='Dropout rate for fully connected layer.')
 
-parser.add_argument('--batch', type=int, required=False, default=16,
+parser.add_argument('--batch', type=int, required=False, default=64,
                     help='Batch size.')
 
 parsed_args = parser.parse_args()
