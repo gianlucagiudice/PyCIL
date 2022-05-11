@@ -62,7 +62,7 @@ assert 0 <= parsed_args.dropout < 1
 
 
 experiment_args = {
-    "run_name": f"BASELINE-{parsed_args.baseline_type}-from_scratch-100_classes-drop{parsed_args.dropout}",
+    "run_name": "BASELINE-{}-from_scratch-{}_classes-drop{}",
     "prefix": "reproduce",
     "dataset": "LogoDet-3K_cropped",
     "shuffle": True,
@@ -250,10 +250,12 @@ def train(args):
 
     logging.info('Network architecture')
     model.info()
-    wandb_logger = WandbLogger(project='pycil', name=args['run_name'], tags=['baseline', 'onlytop'])
 
     # Datamanger
     data_manager = init_datamanager(args)
+
+    run_name = args['run_name'].format(parsed_args.baseline_type, len(data_manager._class_order), parsed_args.dropout)
+    wandb_logger = WandbLogger(project='pycil', name=run_name, tags=['baseline', 'onlytop'])
     train_loader, val_loader, test_loader = init_data(data_manager, args)
 
     # Training
