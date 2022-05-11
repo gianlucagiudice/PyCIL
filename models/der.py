@@ -26,7 +26,7 @@ init_early_stop_patience = 40
 # Incremental task
 epochs = 150
 lrate = 0.001
-milestones = [40, 75, 100]
+milestones = [60, 100, 120]
 lrate_decay = 0.1
 weight_decay = 0
 early_stop_patience = 30
