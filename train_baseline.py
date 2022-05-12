@@ -262,7 +262,14 @@ def train(args):
     Path(args['checkpoint_path'] / run_name).unlink(missing_ok=True)
 
     # Init the logger
-    wandb_logger = WandbLogger(project='pycil', name=run_name, tags=['baseline', 'onlytop'])
+    tags = ['baseline', 'onlytop']
+    if parsed_args.baseline_type == 'resnet152':
+        tags.append('baseline-resnet')
+    elif parsed_args.baseline_type == 'der':
+        tags.append('baseline-der')
+    wandb_logger = WandbLogger(project='pycil', name=run_name, tags=tags)
+
+    # Load dataset
     train_loader, val_loader, test_loader = init_data(data_manager, args)
 
     # Training
