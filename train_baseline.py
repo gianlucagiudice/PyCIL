@@ -254,7 +254,14 @@ def train(args):
     # Datamanger
     data_manager = init_datamanager(args)
 
+    # Create run name
     run_name = args['run_name'].format(parsed_args.baseline_type, len(data_manager._class_order), parsed_args.dropout)
+
+    # Init checkpoint
+    os.makedirs(args['checkpoint_path'], exist_ok=True)
+    Path(args['checkpoint_path'] / run_name).unlink(missing_ok=True)
+
+    # Init the logger
     wandb_logger = WandbLogger(project='pycil', name=run_name, tags=['baseline', 'onlytop'])
     train_loader, val_loader, test_loader = init_data(data_manager, args)
 
@@ -268,7 +275,7 @@ def train(args):
             EarlyStopping(monitor="val_acc", min_delta=args['early_stopping_delta'], patience=args['patience'],
                           verbose=True, mode="max"),
             # Model Checkpoint
-            ModelCheckpoint(dirpath=args['checkpoint_path'], filename=args['run_name'],
+            ModelCheckpoint(dirpath=args['checkpoint_path'], filename=run_name,
                             monitor='val_acc', save_top_k=1, mode='max', verbose=True)
         ]
     )
@@ -276,7 +283,7 @@ def train(args):
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     # Test
     trainer.test(
-        ckpt_path=Path(args['checkpoint_path']) / f"{args['run_name']}.ckpt",
+        ckpt_path=Path(args['checkpoint_path']) / f"{run_name}.ckpt",
         dataloaders=test_loader
     )
 
@@ -316,9 +323,6 @@ def init_dataloader(split, batch_size):
 
 
 def main(args):
-    # Create checkpoint directory
-    os.makedirs(args['checkpoint_path'], exist_ok=True)
-    Path(args['checkpoint_path'] / args['run_name']).unlink(missing_ok=True)
     # Train the model
     train(args)
 
