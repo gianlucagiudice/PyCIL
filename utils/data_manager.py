@@ -4,6 +4,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 from utils.data import iCIFAR10, iCIFAR100, iImageNet100, iImageNet1000, iLogoDet3K
+from torch._C import _LinAlgError
+from .transformations import iLogoDet3K_trsf
 
 
 class DataManager(object):
@@ -150,6 +152,7 @@ class DummyDataset(Dataset):
         self.images = images
         self.labels = labels
         self.trsf = trsf
+        self.common_trsf = transforms.Compose(iLogoDet3K_trsf['common'])
         self.use_path = use_path
 
     def __len__(self):
@@ -162,7 +165,11 @@ class DummyDataset(Dataset):
             image = Image.fromarray(self.images[idx])
 
         # Apply transformations
-        image = self.trsf(image)
+        try:
+            image = self.trsf(image)
+        except _LinAlgError:
+            logging.info(f'Exception: Faild to transform image {self.images[idx]}')
+            image = self.common_trsf(image)
 
         return idx, image, self.labels[idx]
 
