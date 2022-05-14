@@ -259,7 +259,7 @@ def train(args):
 
     # Init checkpoint
     os.makedirs(args['checkpoint_path'], exist_ok=True)
-    Path(args['checkpoint_path'] / run_name).unlink(missing_ok=True)
+    Path(args['checkpoint_path'] / Path(run_name).with_suffix('.ckpt')).unlink(missing_ok=True)
 
     # Init the logger
     tags = ['baseline', 'onlytop']
@@ -290,7 +290,7 @@ def train(args):
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     # Test
     trainer.test(
-        ckpt_path=Path(args['checkpoint_path']) / f"{run_name}.ckpt",
+        ckpt_path=str(Path(args['checkpoint_path']) / f"{run_name}.ckpt"),
         dataloaders=test_loader
     )
 
