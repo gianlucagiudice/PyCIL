@@ -40,7 +40,7 @@ class DER(BaseLearner):
     def __init__(self, args):
         super().__init__(args)
         self._network = DERNet(args['convnet_type'], args['pretrained'], dropout=args.get('dropout'))
-        self.target2folder = dict()
+        self.weight_align = args.get('weight_align', True)
 
     def after_task(self):
         self._known_classes = self._total_classes
@@ -109,7 +109,8 @@ class DER(BaseLearner):
             scheduler = optim.lr_scheduler.MultiStepLR(
                 optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
             self._update_representation(train_loader, validation_loader, optimizer, scheduler)
-            self._network.module.weight_align(self._total_classes - self._known_classes)
+            if self.weight_align:
+                self._network.module.weight_align(self._total_classes - self._known_classes)
 
     def _init_train(self, train_loader, val_loader, optimizer, scheduler, patience=init_early_stop_patience):
         val_acc_list = []

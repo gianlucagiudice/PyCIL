@@ -24,6 +24,9 @@ parser.add_argument('--increment-cls', type=int, required=True, default=30,
 parser.add_argument('--memory-per-class', type=int, required=False, default=1000,
                     help='Number of memory per classes for each incremental task.')
 
+parser.add_argument('--weight-align', action=argparse.BooleanOptionalAction,
+                    help='Weigh align for incremental networks.', required=False, default=True)
+
 args = parser.parse_args()
 
 config_dict = {
@@ -37,6 +40,9 @@ config_dict = {
     "data_augmentation": True,
     "convnet_type": "resnet34",
     "pretrained": True,
+
+    # Weight align
+    "weight_align": args.weight_align,
 
     # CIL task
     "init_cls": args.init_cls,
