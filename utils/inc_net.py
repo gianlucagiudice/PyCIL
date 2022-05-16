@@ -251,8 +251,10 @@ class IncrementalNetWithBias(BaseNet):
 class DERNet(nn.Module):
     def __init__(self, convnet_type, pretrained, dropout=None):
         super(DERNet, self).__init__()
+        self.s = None
         self.convnet_type = convnet_type
         self.convnets = nn.ModuleList()
+        self.masks = []
         self.pretrained = pretrained
         self.out_dim = None
         self.fc = None
@@ -271,8 +273,18 @@ class DERNet(nn.Module):
         features = torch.cat(features, 1)
         return features
 
-    def forward(self, x):
-        features = [convnet(x)['features'] for convnet in self.convnets]
+    def forward(self, x, b=None, B=None):
+        s_max = 10
+        if b is not None and B is not None:
+            s = (1 / s_max) + (s_max - (1 / s_max)) * ((b - 1) / (B-1))
+        else:
+            s = 1
+        self.s = torch.tensor(s, requires_grad=False)
+
+        features = [self.masked_features(x, self.convnets[-1])]
+        if len(self.convnets) > 1:
+            features = [convnet(x) for convnet in self.convnets[:-1]] + features
+
         features = torch.cat(features, 1)
 
         # Dropout
@@ -284,8 +296,57 @@ class DERNet(nn.Module):
 
         aux_logits = self.aux_fc(features[:, -self.out_dim:])["logits"]
 
-        out.update({"aux_logits": aux_logits, "features": features})
+        n = 0
+        d = 0
+        for l in range(1, len(self.masks[-1])):
+            n += self.convolutions[l].kernel_size[0] * torch.norm(self.masks[-1][l], p=1) * torch.norm(self.masks[-1][l-1], p=1)
+            d = self.convolutions[l].kernel_size[0] * self.masks[-1][l].shape[0] * self.masks[-1][l-1].shape[0]
+        sparsity_loss = n / d
+
+        out.update({"aux_logits": aux_logits, "features": features, "sparsity_loss": sparsity_loss})
         return out
+
+    def masked_features(self, x, convnet):
+        masks = self.masks[len(self.convnets)-1]
+
+        l = 0
+
+        x = convnet.conv1(x)
+        x = x * masks[l]
+        l += 1
+        x = convnet.bn1(x)
+        x = convnet.maxpool(x)
+
+        s = torch.tensor(self.s, requires_grad=False)
+
+        # Layer 1
+        all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules, convnet.layer4._modules]
+        for blocks in all_blocks:
+            for block in blocks.values():
+                identity = x
+                # 1
+                out = block.conv1(x)
+                out *= torch.sigmoid(masks[l] * s)
+                l += 1
+                out = block.bn1(out)
+                out = block.relu(out)
+                # 2
+                out = block.conv2(out)
+                out *= torch.sigmoid(masks[l] * s)
+                l += 1
+                out = block.bn2(out)
+
+                if block.downsample is not None:
+                    identity = block.downsample(x)
+
+                out += identity
+                out = block.relu(out)
+                x = out
+
+        pooled = convnet.avgpool(x)
+        features = torch.flatten(pooled, 1)
+
+        return features
 
     def update_fc(self, nb_classes):
         if len(self.convnets) == 0:
@@ -304,6 +365,33 @@ class DERNet(nn.Module):
             fc.weight.data[:nb_output, :self.feature_dim - self.out_dim] = weight
             fc.bias.data[:nb_output] = bias
 
+        # Create mask
+        l = 0
+        convnet = self.convnets[-1]
+        self.convolutions = [convnet.conv1]
+        new_masks = []
+        mask = torch.ones((convnet.conv1.out_channels, 1, 1), requires_grad=True)
+        new_masks.append(mask)
+        all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules,
+                      convnet.layer4._modules]
+        for blocks in all_blocks:
+            for block in blocks.values():
+                l += 1
+                self.convolutions.append(block.conv1)
+                mask = torch.ones((block.conv1.out_channels, 1, 1), requires_grad=True)
+                new_masks.append(mask)
+
+                l += 1
+                self.convolutions.append(block.conv2)
+                mask = torch.ones((block.conv2.out_channels, 1, 1), requires_grad=True)
+                new_masks.append(mask)
+        self.masks.append(new_masks)
+
+        # Register hook
+        self.hook2mask = {}
+        for l, m in enumerate(self.masks[-1]):
+            m.register_hook(self.compensate_gradiant(l))
+
         del self.fc
         self.fc = fc
 
@@ -311,6 +399,21 @@ class DERNet(nn.Module):
         self.task_sizes.append(new_task_size)
 
         self.aux_fc = self.generate_fc(self.out_dim, new_task_size + 1)
+
+    def compensate_gradiant(self, l):
+        return lambda inputs: self.compensate_gradient_layer(inputs, l)
+
+    def compensate_gradient_layer(self, inputs, l_index):
+        s = self.s.detach().clone()
+        e = self.masks[-1][l_index].detach().clone()
+        grad = inputs.detach().clone()
+        n = torch.sigmoid(e) * (1 - torch.sigmoid(e))
+        d = (s * (torch.sigmoid(s * e))) * (1- torch.sigmoid(s * e))
+        res = (n/d) * grad
+        return res
+
+    def get_cnn_layers(self, cnn):
+        return [l for l in cnn.modules() if isinstance(l, torch.nn.Conv2d)]
 
     def generate_fc(self, in_dim, out_dim):
         fc = SimpleLinear(in_dim, out_dim)

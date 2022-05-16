@@ -32,7 +32,7 @@ weight_decay = 0
 early_stop_patience = 30
 
 num_workers = multiprocessing.cpu_count()
-batch_size = 2048
+batch_size = 128
 
 
 class DER(BaseLearner):
@@ -98,7 +98,8 @@ class DER(BaseLearner):
     def _train(self, train_loader, validation_loader):
         self._network.to(self._device)
         if self._cur_task == 0:
-            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self._network.parameters()),
+            parameters = list(filter(lambda p: p.requires_grad, self._network.parameters())) + self._network.module.masks[-1]
+            optimizer = optim.Adam(parameters,
                                    lr=init_lr, weight_decay=init_weight_decay)
 
             scheduler = optim.lr_scheduler.MultiStepLR(
@@ -132,11 +133,15 @@ class DER(BaseLearner):
             self.train()
             losses = 0.
             correct, total = 0, 0
-            for i, (_, inputs, targets) in enumerate(train_loader):
-                inputs, targets = inputs.to(self._device), targets.to(self._device)
-                logits = self._network(inputs)['logits']
 
-                loss = F.cross_entropy(logits, targets)
+            # Sparsity loss
+            s_max = 10
+            for b, (_, inputs, targets) in enumerate(train_loader):
+                inputs, targets = inputs.to(self._device), targets.to(self._device)
+                l = self._network(inputs, b=b, B=len(train_loader))
+                logits = l['logits']
+                sparsity = l['sparsity_loss']
+                loss = F.cross_entropy(logits, targets) + sparsity
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
