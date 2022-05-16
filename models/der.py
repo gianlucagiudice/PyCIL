@@ -41,6 +41,7 @@ class DER(BaseLearner):
         super().__init__(args)
         self._network = DERNet(args['convnet_type'], args['pretrained'], dropout=args.get('dropout'))
         self.weight_align = args.get('weight_align', True)
+        self.min_delta = args.get('min_delta', 0)
 
     def after_task(self):
         self._known_classes = self._total_classes
@@ -151,7 +152,7 @@ class DER(BaseLearner):
             val_acc = self._compute_accuracy(self._network, val_loader)
 
             # Early stopping
-            if val_acc >= best_test_acc_so_far:
+            if val_acc - self.min_delta >= best_test_acc_so_far:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
                 best_test_acc_so_far = val_acc
@@ -221,7 +222,8 @@ class DER(BaseLearner):
 
             val_acc = self._compute_accuracy(self._network, test_loader)
 
-            if val_acc >= best_test_acc_so_far:
+            # Early stopping
+            if val_acc - self.min_delta >= best_test_acc_so_far:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
                 best_test_acc_so_far = val_acc

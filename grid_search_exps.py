@@ -24,6 +24,9 @@ parser.add_argument('--increment-cls', type=int, required=True, default=30,
 parser.add_argument('--memory-per-class', type=int, required=False, default=1000,
                     help='Number of memory per classes for each incremental task.')
 
+parser.add_argument('--min-delta', type=float, required=False, default=0.5,
+                    help='Min delta for early stopping.')
+
 parser.add_argument('--weight-align', action=argparse.BooleanOptionalAction,
                     help='Weigh align for incremental networks.', required=False, default=True)
 
@@ -43,6 +46,9 @@ config_dict = {
 
     # Weight align
     "weight_align": args.weight_align,
+
+    # Min delta for early stopping
+    'min_delta': args.min_delta,
 
     # CIL task
     "init_cls": args.init_cls,
