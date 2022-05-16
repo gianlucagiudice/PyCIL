@@ -46,6 +46,7 @@ class DER(BaseLearner):
     def after_task(self):
         self._known_classes = self._total_classes
         logging.info('Exemplar size: {}'.format(self.exemplar_size))
+        # TODO: Prune network
 
     def incremental_train(self, data_manager):
         self._cur_task += 1
@@ -106,7 +107,8 @@ class DER(BaseLearner):
                 optimizer=optimizer, milestones=init_milestones, gamma=init_lr_decay)
             self._init_train(train_loader, validation_loader, optimizer, scheduler)
         else:
-            optimizer = optim.Adam(filter(lambda p: p.requires_grad, self._network.parameters()))
+            parameters = list(filter(lambda p: p.requires_grad, self._network.parameters())) + self._network.module.masks[-1]
+            optimizer = optim.Adam(parameters)
 
             scheduler = optim.lr_scheduler.MultiStepLR(
                 optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
