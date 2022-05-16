@@ -317,7 +317,7 @@ class DERNet(nn.Module):
         x = convnet.bn1(x)
         x = convnet.maxpool(x)
 
-        s = torch.tensor(self.s, requires_grad=False)
+        s = self.s.detach().clone()
 
         # Layer 1
         all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules, convnet.layer4._modules]
