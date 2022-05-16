@@ -370,7 +370,7 @@ class DERNet(nn.Module):
         convnet = self.convnets[-1]
         self.convolutions = [convnet.conv1]
         new_masks = []
-        mask = torch.ones((convnet.conv1.out_channels, 1, 1), requires_grad=True)
+        mask = torch.rand((convnet.conv1.out_channels, 1, 1), requires_grad=True)
         new_masks.append(mask)
         all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules,
                       convnet.layer4._modules]
@@ -378,12 +378,12 @@ class DERNet(nn.Module):
             for block in blocks.values():
                 l += 1
                 self.convolutions.append(block.conv1)
-                mask = torch.ones((block.conv1.out_channels, 1, 1), requires_grad=True)
+                mask = torch.rand((block.conv1.out_channels, 1, 1), requires_grad=True)
                 new_masks.append(mask)
 
                 l += 1
                 self.convolutions.append(block.conv2)
-                mask = torch.ones((block.conv2.out_channels, 1, 1), requires_grad=True)
+                mask = torch.rand((block.conv2.out_channels, 1, 1), requires_grad=True)
                 new_masks.append(mask)
         self.masks.append(new_masks)
 
