@@ -53,6 +53,13 @@ parser.add_argument('--batch', type=int, required=False, default=256,
 parser.add_argument('--epochs', type=int, required=False, default=150,
                     help='Number of maximum training epochs.')
 
+parser.add_argument('--patience', type=int, required=False, default=30,
+                    help='Number of maximum training epochs.')
+
+parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
+                    help='Number of maximum training epochs.')
+
+
 parsed_args = parser.parse_args()
 
 if parsed_args.baseline_type == 'der':
@@ -84,8 +91,8 @@ experiment_args = {
     # Training
     "batch_size": parsed_args.batch,
     "max_epoch": parsed_args.epochs,
-    "patience": 40,
-    "early_stopping_delta": 0.00,
+    "patience": parsed_args.patience,
+    "early_stopping_delta": parsed_args.min_delta,
     "checkpoint_path": Path('model_checkpoint'),
 }
 
@@ -267,7 +274,7 @@ def train(args):
         tags.append('baseline-resnet')
     elif parsed_args.baseline_type == 'der':
         tags.append('baseline-der')
-    wandb_logger = WandbLogger(project='pycil', name=run_name, tags=tags)
+    wandb_logger = WandbLogger(project='pycil', name=run_name, tags=tags, config=args)
 
     # Load dataset
     train_loader, val_loader, test_loader = init_data(data_manager, args)
