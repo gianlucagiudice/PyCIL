@@ -255,7 +255,7 @@ class DERNet(nn.Module):
         self.s = None
         self.convnet_type = convnet_type
         self.convnets = nn.ModuleList()
-        self.masks = []
+        self.e = []
         self.pretrained = pretrained
         self.out_dim = None
         self.fc = None
@@ -277,10 +277,11 @@ class DERNet(nn.Module):
 
     def forward(self, x, b=None, B=None):
         s_max = 10
-        if b is not None and B is not None:
+        if self.training:
             s = (1 / s_max) + (s_max - (1 / s_max)) * ((b - 1) / (B-1))
         else:
-            s = 1
+            # TODO: High parameter
+            s = 1000
         self.s = torch.tensor(s, requires_grad=False)
 
         features = [self.masked_features(x, self.convnets[-1])]
@@ -298,11 +299,19 @@ class DERNet(nn.Module):
 
         aux_logits = self.aux_fc(features[:, -self.out_dim:])["logits"]
 
-        n = 0
-        d = 0
-        for l in range(1, len(self.masks)):
-            n += self.convolutions[l].kernel_size[0] * torch.norm(self.masks[l], p=1) * torch.norm(self.masks[l-1], p=1)
-            d = self.convolutions[l].kernel_size[0] * self.masks[l].shape[0] * self.masks[l-1].shape[0]
+        n = 0.
+        d = 0.
+        for l in range(1, len(self.e)):
+            m_l = torch.sigmoid(self.s * self.e[l])
+            m_l_prev = torch.sigmoid(self.s * self.e[l-1])
+            norm_l = torch.norm(m_l, p=1)
+            if l-1 == 0:
+                norm_l_prev = 3
+            else:
+                norm_l_prev = torch.norm(m_l_prev, p=1)
+            kernel_size = self.convolutions[l].kernel_size[0]
+            n += kernel_size * norm_l * norm_l_prev
+            d += kernel_size * self.convolutions[l].weight.shape[1] * self.convolutions[l-1].weight.shape[1]
         sparsity_loss = n / d
 
         out.update({"aux_logits": aux_logits, "features": features, "sparsity_loss": sparsity_loss})
@@ -313,7 +322,7 @@ class DERNet(nn.Module):
         self.old_state_dict = self.convnets[-1].state_dict()
 
         for i in range(1, len(self.convolutions) - 1, 2):
-            conv, bns, mask = self.convolutions[i], self.batch_norms[i], self.masks[i]
+            conv, bns, mask = self.convolutions[i], self.batch_norms[i], self.e[i]
             next_conv = self.convolutions[i + 1]
             #next_next_conv = self.convolutions[i + 2]
             new_weight_ids = mask.flatten() > thd
@@ -328,7 +337,12 @@ class DERNet(nn.Module):
             bns.running_var = bns.running_var.detach().clone()[new_weight_ids]
 
     def masked_features(self, x, convnet):
-        masks = self.masks
+        e = self.e
+        if not self.training:
+            e = []
+            for e_l in self.e:
+                e.append(e_l.detach().clone())
+
         s = self.s.detach().clone()
 
         l = 0
@@ -352,15 +366,13 @@ class DERNet(nn.Module):
                 identity = x
                 # 1
                 out = block.conv1(x)
-                if self.training:
-                    out *= torch.sigmoid(masks[l] * s)
+                out *= torch.sigmoid(e[l] * s)
                 l += 1
                 out = block.bn1(out)
                 out = block.relu(out)
                 # 2
                 out = block.conv2(out)
-                if self.training:
-                    out *= torch.sigmoid(masks[l] * s)
+                out *= torch.sigmoid(e[l] * s)
                 l += 1
                 out = block.bn2(out)
 
@@ -418,10 +430,10 @@ class DERNet(nn.Module):
 
                 mask = torch.rand((block.conv2.out_channels, 1, 1), requires_grad=True, device=self.device)
                 new_masks.append(mask)
-        self.masks = new_masks
+        self.e = new_masks
 
         # Register hook
-        for l, m in enumerate(self.masks):
+        for l, m in enumerate(self.e):
             m.register_hook(self.compensate_gradiant(l))
 
         del self.fc
@@ -437,10 +449,10 @@ class DERNet(nn.Module):
 
     def compensate_gradient_layer(self, inputs, l_index):
         s = self.s.detach().clone()
-        e = self.masks[l_index].detach().clone()
+        e = self.e[l_index].detach().clone()
         grad = inputs.detach().clone()
         n = torch.sigmoid(e) * (1 - torch.sigmoid(e))
-        d = (s * (torch.sigmoid(s * e))) * (1- torch.sigmoid(s * e))
+        d = (s * (torch.sigmoid(s * e))) * (1 - torch.sigmoid(s * e))
         res = (n/d) * grad
         return res
 
