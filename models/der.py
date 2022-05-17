@@ -226,7 +226,7 @@ class DER(BaseLearner):
                 losses += loss.item()
                 losses_aux += loss_aux.item()
                 losses_clf += loss_clf.item()
-                losses_sparsity += loss_sparsity.items()
+                losses_sparsity += loss_sparsity.item()
 
                 _, preds = torch.max(logits, dim=1)
                 correct += preds.eq(targets.expand_as(preds)).cpu().sum()
