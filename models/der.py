@@ -32,7 +32,7 @@ weight_decay = 0
 early_stop_patience = 30
 
 num_workers = multiprocessing.cpu_count()
-batch_size = 128
+batch_size = 64
 
 
 class DER(BaseLearner):
@@ -46,7 +46,6 @@ class DER(BaseLearner):
     def after_task(self):
         self._known_classes = self._total_classes
         logging.info('Exemplar size: {}'.format(self.exemplar_size))
-        # TODO: Prune network
 
     def incremental_train(self, data_manager):
         self._cur_task += 1
@@ -89,6 +88,11 @@ class DER(BaseLearner):
         self.build_rehearsal_memory(data_manager, self.samples_per_class)
         self._network = self._network.module
 
+        # Prune network
+        logging.info(f'N. parameters BEFORE PRUNING: {count_parameters(self._network)}')
+        self._network.prune_last_cnn()
+        logging.info(f'N. parameters AFTER PRUNING: {count_parameters(self._network)}')
+
     def train(self):
         self._network.train()
         self._network.module.convnets[-1].train()
@@ -99,7 +103,7 @@ class DER(BaseLearner):
     def _train(self, train_loader, validation_loader):
         self._network.to(self._device)
         if self._cur_task == 0:
-            parameters = list(filter(lambda p: p.requires_grad, self._network.parameters())) + self._network.module.masks[-1]
+            parameters = list(filter(lambda p: p.requires_grad, self._network.parameters())) + self._network.module.masks
             optimizer = optim.Adam(parameters,
                                    lr=init_lr, weight_decay=init_weight_decay)
 
@@ -107,7 +111,7 @@ class DER(BaseLearner):
                 optimizer=optimizer, milestones=init_milestones, gamma=init_lr_decay)
             self._init_train(train_loader, validation_loader, optimizer, scheduler)
         else:
-            parameters = list(filter(lambda p: p.requires_grad, self._network.parameters())) + self._network.module.masks[-1]
+            parameters = list(filter(lambda p: p.requires_grad, self._network.parameters())) + self._network.module.masks
             optimizer = optim.Adam(parameters)
 
             scheduler = optim.lr_scheduler.MultiStepLR(
@@ -134,20 +138,21 @@ class DER(BaseLearner):
 
             self.train()
             losses = 0.
+            losses_sparsity = 0.
             correct, total = 0, 0
 
             # Sparsity loss
-            s_max = 10
             for b, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
                 l = self._network(inputs, b=b, B=len(train_loader))
                 logits = l['logits']
                 sparsity = l['sparsity_loss']
-                loss = F.cross_entropy(logits, targets) + sparsity
+                loss = F.cross_entropy(logits, targets) + (2 * sparsity)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 losses += loss.item()
+                losses_sparsity += sparsity.item()
 
                 _, preds = torch.max(logits, dim=1)
                 correct += preds.eq(targets.expand_as(preds)).cpu().sum()
@@ -166,8 +171,9 @@ class DER(BaseLearner):
             else:
                 curr_patience -= 1
 
-            info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}, Val_accy {:.2f}'.format(
-                self._cur_task, epoch + 1, init_epoch, losses / len(train_loader), train_acc, val_acc)
+            info = 'Task {}, Epoch {}/{} => Loss {:.3f}, Loss_sparsity {:.3f}, Train_accy {:.2f}, Val_accy {:.2f}'\
+                .format(self._cur_task, epoch + 1, init_epoch, losses / len(train_loader),
+                        losses_sparsity / len(train_loader), train_acc, val_acc)
             val_acc_list.append(val_acc)
 
             prog_bar.set_description(info)
@@ -201,17 +207,18 @@ class DER(BaseLearner):
             losses = 0.
             losses_clf = 0.
             losses_aux = 0.
+            losses_sparsity = 0.
             correct, total = 0, 0
             for i, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
                 outputs = self._network(inputs)
-                logits, aux_logits = outputs["logits"], outputs["aux_logits"]
+                logits, aux_logits, loss_sparsity = outputs["logits"], outputs["aux_logits"], outputs["sparsity_loss"]
                 loss_clf = F.cross_entropy(logits, targets)
                 aux_targets = targets.clone()
                 aux_targets = torch.where(aux_targets - self._known_classes + 1 > 0,
                                           aux_targets - self._known_classes + 1, 0)
                 loss_aux = F.cross_entropy(aux_logits, aux_targets)
-                loss = loss_clf + loss_aux
+                loss = loss_clf + loss_aux + loss_sparsity
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -219,6 +226,7 @@ class DER(BaseLearner):
                 losses += loss.item()
                 losses_aux += loss_aux.item()
                 losses_clf += loss_clf.item()
+                losses_sparsity += loss_sparsity.items()
 
                 _, preds = torch.max(logits, dim=1)
                 correct += preds.eq(targets.expand_as(preds)).cpu().sum()
@@ -239,11 +247,13 @@ class DER(BaseLearner):
 
             info = 'Task {}, Epoch {}/{} => ' \
                    'Loss {:.3f}, Loss_clf {:.3f}, ' \
+                   'Loss_sparsity {:.3f}, ' \
                    'Loss_aux {:.3f}, ' \
                    'Train_accy {:.2f}, ' \
                    'Val_accy {:.2f}' \
                 .format(self._cur_task, epoch + 1, epochs, losses / len(train_loader),
-                        losses_clf / len(train_loader), losses_aux / len(train_loader), train_acc, val_acc)
+                        losses_clf / len(train_loader), losses_aux / len(train_loader),
+                        losses_sparsity / len(train_loader), train_acc, val_acc)
             val_acc_list.append(val_acc)
 
             prog_bar.set_description(info)

@@ -251,6 +251,7 @@ class IncrementalNetWithBias(BaseNet):
 class DERNet(nn.Module):
     def __init__(self, convnet_type, pretrained, dropout=None):
         super(DERNet, self).__init__()
+        self.old_state_dict = None
         self.s = None
         self.convnet_type = convnet_type
         self.convnets = nn.ModuleList()
@@ -283,7 +284,7 @@ class DERNet(nn.Module):
 
         features = [self.masked_features(x, self.convnets[-1])]
         if len(self.convnets) > 1:
-            features = [convnet(x) for convnet in self.convnets[:-1]] + features
+            features = [convnet(x)['features'] for convnet in self.convnets[:-1]] + features
 
         features = torch.cat(features, 1)
 
@@ -298,26 +299,50 @@ class DERNet(nn.Module):
 
         n = 0
         d = 0
-        for l in range(1, len(self.masks[-1])):
-            n += self.convolutions[l].kernel_size[0] * torch.norm(self.masks[-1][l], p=1) * torch.norm(self.masks[-1][l-1], p=1)
-            d = self.convolutions[l].kernel_size[0] * self.masks[-1][l].shape[0] * self.masks[-1][l-1].shape[0]
+        for l in range(1, len(self.masks)):
+            n += self.convolutions[l].kernel_size[0] * torch.norm(self.masks[l], p=1) * torch.norm(self.masks[l-1], p=1)
+            d = self.convolutions[l].kernel_size[0] * self.masks[l].shape[0] * self.masks[l-1].shape[0]
         sparsity_loss = n / d
 
         out.update({"aux_logits": aux_logits, "features": features, "sparsity_loss": sparsity_loss})
         return out
 
+    @torch.no_grad()
+    def prune_last_cnn(self, thd=0.01):
+        self.old_state_dict = self.convnets[-1].state_dict()
+
+        for i in range(1, len(self.convolutions) - 1, 2):
+            conv, bns, mask = self.convolutions[i], self.batch_norms[i], self.masks[i]
+            next_conv = self.convolutions[i + 1]
+            #next_next_conv = self.convolutions[i + 2]
+            new_weight_ids = mask.flatten() > thd
+            # Prune parameters
+            conv.weight.data = conv.weight.detach().clone()[new_weight_ids, :]
+            next_conv.weight.data = next_conv.weight.detach().clone()[:, new_weight_ids, :]
+            #next_next_conv.weight.data = next_next_conv.weight.detach().clone()[:, new_weight_ids, :]
+
+            bns.bias.data = bns.bias.detach().clone()[new_weight_ids]
+            bns.weight.data = bns.weight.detach().clone()[new_weight_ids]
+            bns.running_mean = bns.running_mean.detach().clone()[new_weight_ids]
+            bns.running_var = bns.running_var.detach().clone()[new_weight_ids]
+
     def masked_features(self, x, convnet):
-        masks = self.masks[len(self.convnets)-1]
+        masks = self.masks
+        s = self.s.detach().clone()
 
         l = 0
 
         x = convnet.conv1(x)
-        x = x * masks[l]
+
+        # TODO: Change this
+        '''
+        if self.training:
+            x *= torch.sigmoid(masks[l] * s)
+        '''
         l += 1
         x = convnet.bn1(x)
         x = convnet.maxpool(x)
 
-        s = self.s.detach().clone()
 
         # Layer 1
         all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules, convnet.layer4._modules]
@@ -326,13 +351,15 @@ class DERNet(nn.Module):
                 identity = x
                 # 1
                 out = block.conv1(x)
-                out *= torch.sigmoid(masks[l] * s)
+                if self.training:
+                    out *= torch.sigmoid(masks[l] * s)
                 l += 1
                 out = block.bn1(out)
                 out = block.relu(out)
                 # 2
                 out = block.conv2(out)
-                out *= torch.sigmoid(masks[l] * s)
+                if self.training:
+                    out *= torch.sigmoid(masks[l] * s)
                 l += 1
                 out = block.bn2(out)
 
@@ -353,7 +380,7 @@ class DERNet(nn.Module):
             self.convnets.append(get_convnet(self.convnet_type, pretrained=self.pretrained))
         else:
             self.convnets.append(get_convnet(self.convnet_type, pretrained=self.pretrained))
-            self.convnets[-1].load_state_dict(self.convnets[-2].state_dict())
+            self.convnets[-1].load_state_dict(self.old_state_dict)
 
         if self.out_dim is None:
             self.out_dim = self.convnets[-1].out_dim
@@ -369,6 +396,7 @@ class DERNet(nn.Module):
         l = 0
         convnet = self.convnets[-1]
         self.convolutions = [convnet.conv1]
+        self.batch_norms = [convnet.bn1]
         new_masks = []
         mask = torch.rand((convnet.conv1.out_channels, 1, 1), requires_grad=True)
         new_masks.append(mask)
@@ -378,18 +406,21 @@ class DERNet(nn.Module):
             for block in blocks.values():
                 l += 1
                 self.convolutions.append(block.conv1)
+                self.batch_norms.append(block.bn1)
+
                 mask = torch.rand((block.conv1.out_channels, 1, 1), requires_grad=True)
                 new_masks.append(mask)
 
                 l += 1
                 self.convolutions.append(block.conv2)
+                self.batch_norms.append(block.bn2)
+
                 mask = torch.rand((block.conv2.out_channels, 1, 1), requires_grad=True)
                 new_masks.append(mask)
-        self.masks.append(new_masks)
+        self.masks = new_masks
 
         # Register hook
-        self.hook2mask = {}
-        for l, m in enumerate(self.masks[-1]):
+        for l, m in enumerate(self.masks):
             m.register_hook(self.compensate_gradiant(l))
 
         del self.fc
@@ -405,7 +436,7 @@ class DERNet(nn.Module):
 
     def compensate_gradient_layer(self, inputs, l_index):
         s = self.s.detach().clone()
-        e = self.masks[-1][l_index].detach().clone()
+        e = self.masks[l_index].detach().clone()
         grad = inputs.detach().clone()
         n = torch.sigmoid(e) * (1 - torch.sigmoid(e))
         d = (s * (torch.sigmoid(s * e))) * (1- torch.sigmoid(s * e))
