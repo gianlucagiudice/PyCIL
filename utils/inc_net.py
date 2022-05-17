@@ -278,7 +278,7 @@ class DERNet(nn.Module):
     def forward(self, x, b=None, B=None):
         s_max = 10000
         if self.training:
-            s = (1 / s_max) + (s_max - (1 / s_max)) * ((b - 1) / (B-1))
+            s = (1 / s_max) + (s_max - (1 / s_max)) * ((b) / (B-1))
             print(s)
         else:
             # TODO: High parameter
