@@ -34,6 +34,8 @@ early_stop_patience = 30
 num_workers = multiprocessing.cpu_count()
 batch_size = 512
 
+sparsity_lambda = 3
+
 
 class DER(BaseLearner):
 
@@ -147,7 +149,7 @@ class DER(BaseLearner):
                 l = self._network(inputs, b=b, B=len(train_loader))
                 logits = l['logits']
                 sparsity = l['sparsity_loss']
-                loss = F.cross_entropy(logits, targets) + (2 * sparsity)
+                loss = F.cross_entropy(logits, targets) + (sparsity_lambda * sparsity)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -218,7 +220,7 @@ class DER(BaseLearner):
                 aux_targets = torch.where(aux_targets - self._known_classes + 1 > 0,
                                           aux_targets - self._known_classes + 1, 0)
                 loss_aux = F.cross_entropy(aux_logits, aux_targets)
-                loss = loss_clf + loss_aux + loss_sparsity
+                loss = loss_clf + loss_aux + (sparsity_lambda * loss_sparsity)
 
                 optimizer.zero_grad()
                 loss.backward()
