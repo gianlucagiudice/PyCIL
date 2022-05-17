@@ -248,6 +248,9 @@ class IncrementalNetWithBias(BaseNet):
             param.requires_grad = True
 
 
+s_max = 10000
+
+
 class DERNet(nn.Module):
     def __init__(self, convnet_type, pretrained, dropout=None):
         super(DERNet, self).__init__()
@@ -276,9 +279,8 @@ class DERNet(nn.Module):
         return features
 
     def forward(self, x, b=None, B=None):
-        s_max = 10000
         if self.training:
-            s = (1 / s_max) + (s_max - (1 / s_max)) * ((b) / (B-1))
+            s = (1 / s_max) + (s_max - (1 / s_max)) * (b / (B-1))
             print(s)
         else:
             # TODO: High parameter
@@ -313,11 +315,12 @@ class DERNet(nn.Module):
             kernel_size = self.convolutions[l].kernel_size[0]
             n += kernel_size * norm_l * norm_l_prev
             d += kernel_size * self.convolutions[l].weight.shape[1] * self.convolutions[l-1].weight.shape[1]
-        sparsity_loss = (n / d) + 1e-7
-
+        sparsity_loss = n / d
+        '''
         print(f'n: {n.detach().clone().item()}')
         print(f'd: {n.detach().clone().item()}')
         print(f'sparsity: {sparsity_loss.detach().clone().item()}')
+        '''
         out.update({"aux_logits": aux_logits, "features": features, "sparsity_loss": sparsity_loss})
         return out
 
@@ -452,15 +455,14 @@ class DERNet(nn.Module):
         return lambda inputs: self.compensate_gradient_layer(inputs, l)
 
     def compensate_gradient_layer(self, inputs, l_index):
-        # TODO: FIX THIS!
-        return inputs
-        s = self.s.detach().clone()
-        e = self.e[l_index].detach().clone()
-        grad = inputs.detach().clone()
-        n = torch.sigmoid(e) * (1 - torch.sigmoid(e))
-        d = (s * (torch.sigmoid(s * e))) * (1 - torch.sigmoid(s * e))
-        res = (n/d) * grad
-        return res
+        with torch.no_grad():
+            s = torch.nan_to_num(self.s.detach().clone())
+            e = torch.nan_to_num(self.e[l_index].detach().clone())
+            grad = torch.nan_to_num(inputs.detach().clone())
+            n = torch.sigmoid(e) * (1 - torch.sigmoid(e))
+            d = (s * (torch.sigmoid(s * e))) * (1 - torch.sigmoid(s * e))
+            res = (n/d) * grad
+        return torch.nan_to_num(res)
 
     def get_cnn_layers(self, cnn):
         return [l for l in cnn.modules() if isinstance(l, torch.nn.Conv2d)]
