@@ -217,9 +217,9 @@ class DER(BaseLearner):
             losses_aux = 0.
             losses_sparsity = 0.
             correct, total = 0, 0
-            for i, (_, inputs, targets) in enumerate(train_loader):
+            for b, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
-                outputs = self._network(inputs)
+                outputs = self._network(inputs, b=b, B=len(train_loader))
                 logits, aux_logits, loss_sparsity = (
                     outputs["logits"], outputs["aux_logits"], outputs["sparsity_loss"])
                 loss_clf = F.cross_entropy(logits, targets)
