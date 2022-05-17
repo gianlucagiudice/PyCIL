@@ -262,6 +262,7 @@ class DERNet(nn.Module):
         self.aux_fc = None
         self.task_sizes = []
         self.dropout = nn.Dropout(p=dropout) if dropout else None
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     @property
     def feature_dim(self):
@@ -398,7 +399,7 @@ class DERNet(nn.Module):
         self.convolutions = [convnet.conv1]
         self.batch_norms = [convnet.bn1]
         new_masks = []
-        mask = torch.rand((convnet.conv1.out_channels, 1, 1), requires_grad=True)
+        mask = torch.rand((convnet.conv1.out_channels, 1, 1), requires_grad=True, device=self.device)
         new_masks.append(mask)
         all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules,
                       convnet.layer4._modules]
@@ -408,14 +409,14 @@ class DERNet(nn.Module):
                 self.convolutions.append(block.conv1)
                 self.batch_norms.append(block.bn1)
 
-                mask = torch.rand((block.conv1.out_channels, 1, 1), requires_grad=True)
+                mask = torch.rand((block.conv1.out_channels, 1, 1), requires_grad=True, device=self.device)
                 new_masks.append(mask)
 
                 l += 1
                 self.convolutions.append(block.conv2)
                 self.batch_norms.append(block.bn2)
 
-                mask = torch.rand((block.conv2.out_channels, 1, 1), requires_grad=True)
+                mask = torch.rand((block.conv2.out_channels, 1, 1), requires_grad=True, device=self.device)
                 new_masks.append(mask)
         self.masks = new_masks
 
