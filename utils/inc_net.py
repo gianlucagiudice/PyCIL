@@ -266,6 +266,7 @@ class DERNet(nn.Module):
         self.task_sizes = []
         self.dropout = nn.Dropout(p=dropout) if dropout else None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.pruned = False
 
     @property
     def feature_dim(self):
@@ -281,9 +282,7 @@ class DERNet(nn.Module):
     def forward(self, x, b=None, B=None):
         if self.training:
             s = (1 / s_max) + (s_max - (1 / s_max)) * (b / (B-1))
-            print(s)
         else:
-            # TODO: High parameter
             s = s_max
         self.s = torch.tensor(s, requires_grad=False)
 
@@ -325,11 +324,13 @@ class DERNet(nn.Module):
         return out
 
     @torch.no_grad()
-    def prune_last_cnn(self, thd=0.01):
+    def prune_last_cnn(self, thd=0.001):
+        self.pruned = True
         self.old_state_dict = self.convnets[-1].state_dict()
 
         for i in range(1, len(self.convolutions) - 1, 2):
-            conv, bns, mask = self.convolutions[i], self.batch_norms[i], self.e[i]
+            conv, bns, e = self.convolutions[i], self.batch_norms[i], self.e[i]
+            mask = torch.tensor([torch.sigmoid(s_max * e_l) for e_l in e])
             next_conv = self.convolutions[i + 1]
             #next_next_conv = self.convolutions[i + 2]
             new_weight_ids = mask.flatten() > thd
@@ -373,13 +374,15 @@ class DERNet(nn.Module):
                 identity = x
                 # 1
                 out = block.conv1(x)
-                out *= torch.sigmoid(e[l] * s)
+                if not self.pruned:
+                    out *= torch.sigmoid(e[l] * s)
                 l += 1
                 out = block.bn1(out)
                 out = block.relu(out)
                 # 2
                 out = block.conv2(out)
-                out *= torch.sigmoid(e[l] * s)
+                if not self.pruned:
+                    out *= torch.sigmoid(e[l] * s)
                 l += 1
                 out = block.bn2(out)
 
@@ -438,6 +441,7 @@ class DERNet(nn.Module):
                 mask = torch.rand((block.conv2.out_channels, 1, 1), requires_grad=True, device=self.device)
                 new_masks.append(mask)
         self.e = new_masks
+        self.pruned = False
 
         # Register hook
         for l, m in enumerate(self.e):
