@@ -276,12 +276,13 @@ class DERNet(nn.Module):
         return features
 
     def forward(self, x, b=None, B=None):
-        s_max = 100
+        s_max = 10000
         if self.training:
             s = (1 / s_max) + (s_max - (1 / s_max)) * ((b - 1) / (B-1))
+            print(s)
         else:
             # TODO: High parameter
-            s = 1000
+            s = s_max
         self.s = torch.tensor(s, requires_grad=False)
 
         features = [self.masked_features(x, self.convnets[-1])]
@@ -312,8 +313,11 @@ class DERNet(nn.Module):
             kernel_size = self.convolutions[l].kernel_size[0]
             n += kernel_size * norm_l * norm_l_prev
             d += kernel_size * self.convolutions[l].weight.shape[1] * self.convolutions[l-1].weight.shape[1]
-        sparsity_loss = n / d
+        sparsity_loss = (n / d) + 1e-7
 
+        print(f'n: {n.detach().clone().item()}')
+        print(f'd: {n.detach().clone().item()}')
+        print(f'sparsity: {sparsity_loss.detach().clone().item()}')
         out.update({"aux_logits": aux_logits, "features": features, "sparsity_loss": sparsity_loss})
         return out
 
