@@ -276,7 +276,7 @@ class DERNet(nn.Module):
         return features
 
     def forward(self, x, b=None, B=None):
-        s_max = 10
+        s_max = 100
         if self.training:
             s = (1 / s_max) + (s_max - (1 / s_max)) * ((b - 1) / (B-1))
         else:
