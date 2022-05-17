@@ -452,6 +452,8 @@ class DERNet(nn.Module):
         return lambda inputs: self.compensate_gradient_layer(inputs, l)
 
     def compensate_gradient_layer(self, inputs, l_index):
+        # TODO: FIX THIS!
+        return inputs
         s = self.s.detach().clone()
         e = self.e[l_index].detach().clone()
         grad = inputs.detach().clone()
