@@ -18,7 +18,7 @@ EPSILON = 1e-8
 # Init task
 init_epoch = 200
 init_lr = 0.001
-init_milestones = [150]
+init_milestones = [70, 150]
 init_lr_decay = 0.1
 init_weight_decay = 0
 init_early_stop_patience = 40
@@ -26,7 +26,7 @@ init_early_stop_patience = 40
 # Incremental task
 epochs = 150
 lrate = 0.001
-milestones = [100]
+milestones = [60, 100]
 lrate_decay = 0.1
 weight_decay = 0
 early_stop_patience = 30
@@ -34,7 +34,7 @@ early_stop_patience = 30
 num_workers = multiprocessing.cpu_count()
 batch_size = 128
 
-sparsity_lambda = 1
+sparsity_lambda = 2
 
 
 class DER(BaseLearner):

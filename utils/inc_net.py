@@ -324,7 +324,7 @@ class DERNet(nn.Module):
         return out
 
     @torch.no_grad()
-    def prune_last_cnn(self, thd=0.001):
+    def prune_last_cnn(self, thd=0.0001):
         self.pruned = True
         self.old_state_dict = self.convnets[-1].state_dict()
 
