@@ -140,8 +140,6 @@ class DER(BaseLearner):
         curr_patience = patience
 
         for _, epoch in enumerate(prog_bar):
-            if epoch >= 6:
-                break
 
             # Early stopping
             if curr_patience == 0:
