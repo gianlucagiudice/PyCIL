@@ -104,7 +104,10 @@ def _train(args):
             logging.info('CNN top1 curve: {}'.format(cnn_curve['top1']))
             logging.info('CNN top5 curve: {}\n'.format(cnn_curve['top5']))
 
-        wandb.log({'CIL/top1_acc': cnn_accy['top1'], 'CIL/top5_acc': cnn_accy['top5'], 'task': task})
+        wandb.log({
+            'CIL/top1_acc': cnn_accy['top1'], 'CIL/top5_acc': cnn_accy['top5'],
+            'CIL/n_parameters': {f"{count_parameters(model._network) / 10**6:.2f}"}, 'task': task})
+
 
     # Save the model
     logging.info('Saving the model . . .')
