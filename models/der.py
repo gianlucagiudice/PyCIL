@@ -98,8 +98,7 @@ class DER(BaseLearner):
         logging.info(f'Pruning: N. parameters after pruning: {n_param_after_pruning / 10**6:.2f}M')
         n_pruned_parameters = n_param_before_pruning - n_param_after_pruning
         logging.info(f'Pruning: N. pruned parameters: {n_pruned_parameters / 10**6:.2f}M')
-
-        # Log number of parameters
+        logging.info(f'Pruning: N. pruned parameters: {n_pruned_parameters / 10**6:.2f}M')
 
     def train(self):
         self._network.train()
