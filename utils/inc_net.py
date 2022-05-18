@@ -8,7 +8,7 @@ from convs.ucir_resnet import resnet18 as cosine_resnet18
 from convs.ucir_resnet import resnet34 as cosine_resnet34
 from convs.ucir_resnet import resnet50 as cosine_resnet50
 from convs.linears import SimpleLinear, SplitCosineLinear, CosineLinear
-
+import logging
 
 def get_convnet(convnet_type, pretrained=False):
     name = convnet_type.lower()
@@ -329,14 +329,18 @@ class DERNet(nn.Module):
         self.old_state_dict = self.convnets[-1].state_dict()
 
         for i in range(1, len(self.convolutions) - 1, 2):
-            conv, bns, e = self.convolutions[i], self.batch_norms[i], self.e[i]
-            mask = torch.tensor([torch.sigmoid(s_max * e_l) for e_l in e])
+            conv, bns, e, e_next = self.convolutions[i], self.batch_norms[i], self.e[i], self.e[i+1]
+            mask = torch.unsqueeze(torch.sigmoid(e.detach().clone() * s_max), -1)
+            mask_next = torch.unsqueeze(torch.sigmoid(e_next.detach().clone() * s_max), -1)
             next_conv = self.convolutions[i + 1]
-            #next_next_conv = self.convolutions[i + 2]
+            # Binarize mask
             new_weight_ids = mask.flatten() > thd
+            print(f'Number of channels after pruning (layer {i}): {new_weight_ids.sum().item()}')
             # Prune parameters
-            conv.weight.data = conv.weight.detach().clone()[new_weight_ids, :]
-            next_conv.weight.data = next_conv.weight.detach().clone()[:, new_weight_ids, :]
+            conv_weight = conv.weight.detach().clone() * mask
+            next_conv_weight = next_conv.weight.detach().clone() * mask_next
+            conv.weight.data = conv_weight[new_weight_ids, :]
+            next_conv.weight.data = next_conv_weight[:, new_weight_ids, :]
             #next_next_conv.weight.data = next_next_conv.weight.detach().clone()[:, new_weight_ids, :]
 
             bns.bias.data = bns.bias.detach().clone()[new_weight_ids]
