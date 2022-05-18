@@ -106,7 +106,7 @@ def _train(args):
 
         wandb.log({
             'CIL/top1_acc': cnn_accy['top1'], 'CIL/top5_acc': cnn_accy['top5'],
-            'CIL/n_parameters': {f"{count_parameters(model._network) / 10**6:.2f}"}, 'task': task})
+            'CIL/n_parameters': round(count_parameters(model._network) / 10**6, 2), 'task': task})
 
     # Save the model
     logging.info('Saving the model . . .')
