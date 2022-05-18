@@ -34,7 +34,7 @@ early_stop_patience = 30
 num_workers = multiprocessing.cpu_count()
 batch_size = 128
 
-sparsity_lambda = 2
+sparsity_lambda = 3
 
 
 class DER(BaseLearner):

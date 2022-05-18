@@ -248,7 +248,7 @@ class IncrementalNetWithBias(BaseNet):
             param.requires_grad = True
 
 
-s_max = 10000
+s_max = 100000
 
 
 class DERNet(nn.Module):
