@@ -201,6 +201,7 @@ class DER(BaseLearner):
                 f'task{0}/val_acc': val_acc,
                 f'task{0}/val_clf_loss': loss['clf'],
                 f'task{0}/val_sparsity_loss': loss['sparsity'],
+                f'task{0}/val_loss': sum(loss.values()),
                 'epoch': epoch})
 
         # Use the best network
@@ -290,6 +291,7 @@ class DER(BaseLearner):
                        f'task{self._cur_task}/val_acc': val_acc,
                        f'task{self._cur_task}/val_clf_loss': loss['clf'],
                        f'task{self._cur_task}/val_sparsity_loss': loss['sparsity'],
+                       f'task{self._cur_task}/val_loss': sum(loss.values()),
                        'epoch': epoch})
 
         # Use the best network
