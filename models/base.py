@@ -109,8 +109,8 @@ class BaseLearner(object):
             with torch.no_grad():
                 outputs = model(inputs)
 
-                logits = outputs['logits']
-                sparsity = outputs['sparsity_loss']
+                logits = outputs['logits'].to(self._device)
+                sparsity = outputs['sparsity_loss'].to(self._device)
                 loss = {
                     'clf': F.cross_entropy(logits, targets),
                     'sparsity': (sparsity_lambda * sparsity)
