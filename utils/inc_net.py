@@ -248,7 +248,7 @@ class IncrementalNetWithBias(BaseNet):
             param.requires_grad = True
 
 
-s_max = 100000
+s_max = 1000
 
 
 class DERNet(nn.Module):
@@ -372,7 +372,9 @@ class DERNet(nn.Module):
 
 
         # Layer 1
-        all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules, convnet.layer4._modules]
+        all_blocks = [
+            convnet.layer1._modules, convnet.layer2._modules,
+            convnet.layer3._modules, convnet.layer4._modules]
         for blocks in all_blocks:
             for block in blocks.values():
                 identity = x

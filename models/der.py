@@ -34,7 +34,7 @@ early_stop_patience = 30
 num_workers = multiprocessing.cpu_count()
 batch_size = 32
 
-sparsity_lambda = 3
+sparsity_lambda = 5
 
 
 class DER(BaseLearner):
@@ -130,13 +130,14 @@ class DER(BaseLearner):
             if self.weight_align:
                 self._network.module.weight_align(self._total_classes - self._known_classes)
 
-    def _init_train(self, train_loader, val_loader, optimizer, scheduler, patience=init_early_stop_patience):
+    def _init_train(
+            self, train_loader, val_loader, optimizer, scheduler, patience=init_early_stop_patience):
         val_acc_list = []
         prog_bar = tqdm(range(init_epoch))
 
         # Early stopping
         best_network_so_far = self._network.module.copy()
-        best_test_acc_so_far = 0
+        best_stopping_value = float('inf')
         curr_patience = patience
 
         for _, epoch in enumerate(prog_bar):
@@ -171,13 +172,17 @@ class DER(BaseLearner):
             scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
-            val_acc = self._compute_accuracy(self._network, val_loader)
+            val_acc, loss = self._compute_accuracy(
+                self._network, val_loader, sparsity_lambda=sparsity_lambda)
+
 
             # Early stopping
-            if val_acc - self.min_delta >= best_test_acc_so_far:
+            stopping_value = sum(loss.values())
+
+            if stopping_value + self.min_delta <= best_stopping_value:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
-                best_test_acc_so_far = val_acc
+                best_stopping_value = stopping_value
             else:
                 curr_patience -= 1
 
@@ -191,7 +196,12 @@ class DER(BaseLearner):
             prog_bar.set_description(info)
 
             # Wandb
-            wandb.log({f'task{0}/train_acc': train_acc, f'task{0}/val_acc': val_acc, 'epoch': epoch})
+            wandb.log({
+                f'task{0}/train_acc': train_acc,
+                f'task{0}/val_acc': val_acc,
+                f'task{0}/val_clf_loss': loss['clf'],
+                f'task{0}/val_sparsity_loss': loss['sparsity'],
+                'epoch': epoch})
 
         # Use the best network
         self._network.module = best_network_so_far
@@ -199,14 +209,14 @@ class DER(BaseLearner):
         logging.info(info)
         logging.info(f'Task {self._cur_task}, Accuracy validation history => {val_acc_list}')
 
-    def _update_representation(self,
-                               train_loader, test_loader, optimizer, scheduler, patience=early_stop_patience):
+    def _update_representation(
+            self, train_loader, test_loader, optimizer, scheduler, patience=early_stop_patience):
         val_acc_list = []
         prog_bar = tqdm(range(epochs))
 
         # Early stopping
         best_network_so_far = self._network.module.copy()
-        best_test_acc_so_far = 0
+        best_stopping_value = float('inf')
         curr_patience = patience
 
         for _, epoch in enumerate(prog_bar):
@@ -249,13 +259,16 @@ class DER(BaseLearner):
             scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
-            val_acc = self._compute_accuracy(self._network, test_loader)
+            val_acc, loss = self._compute_accuracy(
+                self._network, test_loader, sparsity_lambda=sparsity_lambda)
 
             # Early stopping
-            if val_acc - self.min_delta >= best_test_acc_so_far:
+            stopping_value = sum(loss.values())
+
+            if stopping_value + self.min_delta <= best_stopping_value:
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
-                best_test_acc_so_far = val_acc
+                best_stopping_value = stopping_value
             else:
                 curr_patience -= 1
 
@@ -275,6 +288,8 @@ class DER(BaseLearner):
             # Wandb
             wandb.log({f'task{self._cur_task}/train_acc': train_acc,
                        f'task{self._cur_task}/val_acc': val_acc,
+                       f'task{self._cur_task}/val_clf_loss': loss['clf'],
+                       f'task{self._cur_task}/val_sparsity_loss': loss['sparsity'],
                        'epoch': epoch})
 
         # Use the best network

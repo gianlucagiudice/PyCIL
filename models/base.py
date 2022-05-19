@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 from utils.toolkit import tensor2numpy, accuracy
 from scipy.spatial.distance import cdist
 
+from torch.nn import functional as F
+
 EPSILON = 1e-8
 batch_size = 64
 
@@ -99,18 +101,30 @@ class BaseLearner(object):
         else:
             return (self._data_memory, self._targets_memory)
 
-    def _compute_accuracy(self, model, loader):
+    def _compute_accuracy(self, model, loader, sparsity_lambda=None):
         model.eval()
         correct, total = 0, 0
         for i, (_, inputs, targets) in enumerate(loader):
             inputs = inputs.to(self._device)
             with torch.no_grad():
-                outputs = model(inputs)['logits']
-            predicts = torch.max(outputs, dim=1)[1]
+                outputs = model(inputs)
+
+                logits = outputs['logits']
+                sparsity = outputs['sparsity_loss']
+                loss = {
+                    'clf': F.cross_entropy(logits, targets),
+                    'sparsity': (sparsity_lambda * sparsity)
+                }
+
+            predicts = torch.max(outputs['logits'], dim=1)[1]
             correct += (predicts.cpu() == targets).sum()
             total += len(targets)
 
-        return np.around(tensor2numpy(correct)*100 / total, decimals=2)
+        acc = np.around(tensor2numpy(correct)*100 / total, decimals=2)
+        if not sparsity_lambda:
+            return acc
+        else:
+            return acc, loss
 
     def _eval_cnn(self, loader):
         self._network.eval()
