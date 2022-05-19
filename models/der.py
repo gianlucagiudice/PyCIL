@@ -32,7 +32,7 @@ weight_decay = 0
 early_stop_patience = 30
 
 num_workers = multiprocessing.cpu_count()
-batch_size = 32
+batch_size = 512
 
 sparsity_lambda = 5
 
@@ -97,7 +97,6 @@ class DER(BaseLearner):
         n_param_after_pruning = count_parameters(self._network)
         logging.info(f'Pruning: N. parameters after pruning: {n_param_after_pruning / 10**6:.2f}M')
         n_pruned_parameters = n_param_before_pruning - n_param_after_pruning
-        logging.info(f'Pruning: N. pruned parameters: {n_pruned_parameters / 10**6:.2f}M')
         logging.info(f'Pruning: N. pruned parameters: {n_pruned_parameters / 10**6:.2f}M')
 
     def train(self):
