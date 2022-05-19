@@ -315,11 +315,6 @@ class DERNet(nn.Module):
             n += kernel_size * norm_l * norm_l_prev
             d += kernel_size * self.convolutions[l].weight.shape[1] * self.convolutions[l-1].weight.shape[1]
         sparsity_loss = n / d
-        '''
-        print(f'n: {n.detach().clone().item()}')
-        print(f'd: {n.detach().clone().item()}')
-        print(f'sparsity: {sparsity_loss.detach().clone().item()}')
-        '''
         out.update({"aux_logits": aux_logits, "features": features, "sparsity_loss": sparsity_loss})
         return out
 
@@ -335,7 +330,9 @@ class DERNet(nn.Module):
             next_conv = self.convolutions[i + 1]
             # Binarize mask
             new_weight_ids = mask.flatten() > thd
-            print(f'Number of channels after pruning (layer {i}): {new_weight_ids.sum().item()}')
+            if new_weight_ids.sum() == 0:
+                new_weight_ids[mask.flatten().argmax()] = True
+            logging.info(f'Pruning: Number of channels after pruning (layer {i}): {new_weight_ids.sum().item()}')
             # Prune parameters
             conv_weight = conv.weight.detach().clone() * mask
             next_conv_weight = next_conv.weight.detach().clone() * mask_next
