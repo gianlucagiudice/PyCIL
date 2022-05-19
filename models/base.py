@@ -105,6 +105,7 @@ class BaseLearner(object):
         model.eval()
         correct, total = 0, 0
         for i, (_, inputs, targets) in enumerate(loader):
+            targets = targets.to(self._device)
             inputs = inputs.to(self._device)
             with torch.no_grad():
                 outputs = model(inputs)
@@ -117,7 +118,7 @@ class BaseLearner(object):
                 }
 
             predicts = torch.max(outputs['logits'], dim=1)[1]
-            correct += (predicts.cpu() == targets).sum()
+            correct += (predicts == targets).sum()
             total += len(targets)
 
         acc = np.around(tensor2numpy(correct)*100 / total, decimals=2)
