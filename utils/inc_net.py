@@ -406,7 +406,8 @@ class DERNet(nn.Module):
             self.convnets.append(get_convnet(self.convnet_type, pretrained=self.pretrained))
         else:
             self.convnets.append(get_convnet(self.convnet_type, pretrained=self.pretrained))
-            self.convnets[-1].load_state_dict(self.old_state_dict)
+            if self.old_state_dict:
+                self.convnets[-1].load_state_dict(self.old_state_dict)
 
         if self.out_dim is None:
             self.out_dim = self.convnets[-1].out_dim
