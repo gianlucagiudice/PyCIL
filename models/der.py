@@ -32,7 +32,7 @@ weight_decay = 0
 early_stop_patience = 30
 
 num_workers = multiprocessing.cpu_count()
-batch_size = 512
+batch_size = 64
 
 sparsity_lambda = 4
 
