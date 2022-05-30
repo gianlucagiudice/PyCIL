@@ -101,7 +101,7 @@ class BaseLearner(object):
         else:
             return (self._data_memory, self._targets_memory)
 
-    def _compute_accuracy(self, model, loader, sparsity_lambda=None):
+    def _compute_accuracy(self, model, loader, sparsity_lambda=0):
         model.eval()
         correct, total = 0, 0
         for i, (_, inputs, targets) in enumerate(loader):
@@ -122,10 +122,7 @@ class BaseLearner(object):
             total += len(targets)
 
         acc = np.around(tensor2numpy(correct)*100 / total, decimals=2)
-        if not sparsity_lambda:
-            return acc
-        else:
-            return acc, loss
+        return acc, loss
 
     def _eval_cnn(self, loader):
         self._network.eval()

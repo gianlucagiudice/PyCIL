@@ -252,7 +252,7 @@ s_max = 1000
 
 
 class DERNet(nn.Module):
-    def __init__(self, convnet_type, pretrained, dropout=None):
+    def __init__(self, convnet_type, pretrained, dropout=None, sparsity_lambda=0):
         super(DERNet, self).__init__()
         self.old_state_dict = None
         self.s = None
@@ -268,6 +268,8 @@ class DERNet(nn.Module):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.pruned = False
 
+        self.do_pruning = sparsity_lambda != 0
+
     @property
     def feature_dim(self):
         if self.out_dim is None:
@@ -280,16 +282,18 @@ class DERNet(nn.Module):
         return features
 
     def forward(self, x, b=None, B=None):
-        if self.training:
-            s = (1 / s_max) + (s_max - (1 / s_max)) * (b / (B-1))
+        if self.do_pruning:
+            if self.training:
+                s = (1 / s_max) + (s_max - (1 / s_max)) * (b / (B-1))
+            else:
+                s = s_max
+            self.s = torch.tensor(s, requires_grad=False)
+
+            features = [self.masked_features(x, self.convnets[-1])]
+            if len(self.convnets) > 1:
+                features = [convnet(x)['features'] for convnet in self.convnets[:-1]] + features
         else:
-            s = s_max
-        self.s = torch.tensor(s, requires_grad=False)
-
-        features = [self.masked_features(x, self.convnets[-1])]
-        if len(self.convnets) > 1:
-            features = [convnet(x)['features'] for convnet in self.convnets[:-1]] + features
-
+            features = [convnet(x)['features'] for convnet in self.convnets]
         features = torch.cat(features, 1)
 
         # Dropout
@@ -301,21 +305,23 @@ class DERNet(nn.Module):
 
         aux_logits = self.aux_fc(features[:, -self.out_dim:])["logits"]
 
-        n = 0.
-        d = 0.
-        for l in range(1, len(self.e)):
-            m_l = torch.sigmoid(self.s * self.e[l])
-            m_l_prev = torch.sigmoid(self.s * self.e[l-1])
-            norm_l = torch.norm(m_l, p=1)
-            if l-1 == 0:
-                norm_l_prev = 3
-            else:
-                norm_l_prev = torch.norm(m_l_prev, p=1)
-            kernel_size = self.convolutions[l].kernel_size[0]
-            n += kernel_size * norm_l * norm_l_prev
-            d += kernel_size * self.convolutions[l].weight.shape[1] * self.convolutions[l-1].weight.shape[1]
-        sparsity_loss = n / d
-        out.update({"aux_logits": aux_logits, "features": features, "sparsity_loss": sparsity_loss})
+        if self.do_pruning:
+            n = 0.
+            d = 0.
+            for l in range(1, len(self.e)):
+                m_l = torch.sigmoid(self.s * self.e[l])
+                m_l_prev = torch.sigmoid(self.s * self.e[l-1])
+                norm_l = torch.norm(m_l, p=1)
+                if l-1 == 0:
+                    norm_l_prev = 3
+                else:
+                    norm_l_prev = torch.norm(m_l_prev, p=1)
+                kernel_size = self.convolutions[l].kernel_size[0]
+                n += kernel_size * norm_l * norm_l_prev
+                d += kernel_size * self.convolutions[l].weight.shape[1] * self.convolutions[l-1].weight.shape[1]
+            sparsity_loss = n / d
+            out.update({"sparsity_loss": sparsity_loss})
+        out.update({"aux_logits": aux_logits, "features": features})
         return out
 
     @torch.no_grad()
@@ -419,37 +425,38 @@ class DERNet(nn.Module):
             fc.weight.data[:nb_output, :self.feature_dim - self.out_dim] = weight
             fc.bias.data[:nb_output] = bias
 
-        # Create mask
-        l = 0
-        convnet = self.convnets[-1]
-        self.convolutions = [convnet.conv1]
-        self.batch_norms = [convnet.bn1]
-        new_masks = []
-        mask = torch.rand((convnet.conv1.out_channels, 1, 1), requires_grad=True, device=self.device)
-        new_masks.append(mask)
-        all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules,
-                      convnet.layer4._modules]
-        for blocks in all_blocks:
-            for block in blocks.values():
-                l += 1
-                self.convolutions.append(block.conv1)
-                self.batch_norms.append(block.bn1)
+        if self.do_pruning:
+            # Create mask
+            l = 0
+            convnet = self.convnets[-1]
+            self.convolutions = [convnet.conv1]
+            self.batch_norms = [convnet.bn1]
+            new_masks = []
+            mask = torch.rand((convnet.conv1.out_channels, 1, 1), requires_grad=True, device=self.device)
+            new_masks.append(mask)
+            all_blocks = [convnet.layer1._modules, convnet.layer2._modules, convnet.layer3._modules,
+                          convnet.layer4._modules]
+            for blocks in all_blocks:
+                for block in blocks.values():
+                    l += 1
+                    self.convolutions.append(block.conv1)
+                    self.batch_norms.append(block.bn1)
 
-                mask = torch.rand((block.conv1.out_channels, 1, 1), requires_grad=True, device=self.device)
-                new_masks.append(mask)
+                    mask = torch.rand((block.conv1.out_channels, 1, 1), requires_grad=True, device=self.device)
+                    new_masks.append(mask)
 
-                l += 1
-                self.convolutions.append(block.conv2)
-                self.batch_norms.append(block.bn2)
+                    l += 1
+                    self.convolutions.append(block.conv2)
+                    self.batch_norms.append(block.bn2)
 
-                mask = torch.rand((block.conv2.out_channels, 1, 1), requires_grad=True, device=self.device)
-                new_masks.append(mask)
-        self.e = new_masks
-        self.pruned = False
+                    mask = torch.rand((block.conv2.out_channels, 1, 1), requires_grad=True, device=self.device)
+                    new_masks.append(mask)
+            self.e = new_masks
+            self.pruned = False
 
-        # Register hook
-        for l, m in enumerate(self.e):
-            m.register_hook(self.compensate_gradiant(l))
+            # Register hook
+            for l, m in enumerate(self.e):
+                m.register_hook(self.compensate_gradiant(l))
 
         del self.fc
         self.fc = fc

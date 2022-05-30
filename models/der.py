@@ -44,6 +44,7 @@ class DER(BaseLearner):
         self._network = DERNet(args['convnet_type'], args['pretrained'], dropout=args.get('dropout'))
         self.weight_align = args.get('weight_align', True)
         self.min_delta = args.get('min_delta', 0)
+        self.sparsity_lambda = args.get('sparsity_lambda', 0)
 
     def after_task(self):
         self._known_classes = self._total_classes
@@ -91,13 +92,14 @@ class DER(BaseLearner):
         self._network = self._network.module
 
         # Prune network
-        n_param_before_pruning = count_parameters(self._network)
-        logging.info(f'Pruning: N. parameters before pruning: {n_param_before_pruning / 10**6:.2f}M')
-        self._network.prune_last_cnn()
-        n_param_after_pruning = count_parameters(self._network)
-        logging.info(f'Pruning: N. parameters after pruning: {n_param_after_pruning / 10**6:.2f}M')
-        n_pruned_parameters = n_param_before_pruning - n_param_after_pruning
-        logging.info(f'Pruning: N. pruned parameters: {n_pruned_parameters / 10**6:.2f}M')
+        if self.sparsity_lambda:
+            n_param_before_pruning = count_parameters(self._network)
+            logging.info(f'Pruning: N. parameters before pruning: {n_param_before_pruning / 10**6:.2f}M')
+            self._network.prune_last_cnn()
+            n_param_after_pruning = count_parameters(self._network)
+            logging.info(f'Pruning: N. parameters after pruning: {n_param_after_pruning / 10**6:.2f}M')
+            n_pruned_parameters = n_param_before_pruning - n_param_after_pruning
+            logging.info(f'Pruning: N. pruned parameters: {n_pruned_parameters / 10**6:.2f}M')
 
     def train(self):
         self._network.train()
@@ -110,7 +112,10 @@ class DER(BaseLearner):
         self._network.to(self._device)
         if self._cur_task == 0:
             parameters = list(filter(lambda p: p.requires_grad, self._network.parameters()))
-            parameters += self._network.module.e
+
+            # Embeddings for pruning
+            if self.sparsity_lambda:
+                parameters += self._network.module.e
 
             optimizer = optim.Adam(parameters, lr=init_lr, weight_decay=init_weight_decay)
 
@@ -119,7 +124,10 @@ class DER(BaseLearner):
             self._init_train(train_loader, validation_loader, optimizer, scheduler)
         else:
             parameters = list(filter(lambda p: p.requires_grad, self._network.parameters()))
-            parameters += self._network.module.e
+
+            # Embeddings for pruning
+            if self.sparsity_lambda:
+                parameters += self._network.module.e
 
             optimizer = optim.Adam(parameters)
 
