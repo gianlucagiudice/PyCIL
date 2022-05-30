@@ -111,7 +111,7 @@ for i in grid_search_ids:
     print(f'{"=" * 20} Grid search {i}/{len(grid_search)} {"=" * 20}')
 
     # Unpack gridsearch
-    dropout, memory_per_class, weight_aligning = grid_search[i]
+    dropout, memory_per_class, weight_aligning = grid_search[i - 1]
     architecture = config_dict['convnet_type']
     pretrained = config_dict['pretrained']
 

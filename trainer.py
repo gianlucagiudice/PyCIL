@@ -70,7 +70,7 @@ def _train(args):
     _set_device(args)
 
     print_args(args)
-    logging.info(f'Run name: {wandb.run.name}')
+    logging.info(f'Run name: {wandb.run.name}\n')
 
     model = factory.get_model(args['model_name'], args)
 
