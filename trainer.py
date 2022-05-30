@@ -56,7 +56,7 @@ def _train(args):
 
     wandb.run.name = f"{'BASELINE-' if args.get('baseline', None) else ''}" \
                      f"CIL_{args['init_cls']}_{args['increment']}_{len(data_manager._class_order)}" \
-                     f"-WA" if {args['weight_align']} else "-noWA" \
+                     f"-{'WA' if args['weight_align'] else 'noWA'}" \
                      f"-mem{args['memory_per_class']}" \
                      f"-{args['convnet_type']}" \
                      f"-{'pretrained' if args['pretrained'] else 'nopretrained'}" \
@@ -70,6 +70,7 @@ def _train(args):
     _set_device(args)
 
     print_args(args)
+    logging.info(f'Run name: {wandb.run.name}')
 
     model = factory.get_model(args['model_name'], args)
 
