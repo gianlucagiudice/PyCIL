@@ -1,3 +1,5 @@
+import os
+import shutil
 from copy import copy
 import json
 import subprocess
@@ -29,6 +31,9 @@ parser.add_argument('--min-delta', type=float, required=False, default=0.5,
 
 parser.add_argument('--weight-align', action=argparse.BooleanOptionalAction,
                     help='Weigh align for incremental networks.', required=False, default=True)
+
+parser.add_argument('--rm-checkpoint', action=argparse.BooleanOptionalAction,
+                    help='Remove model checkpoint.', required=False, default=True)
 
 args = parser.parse_args()
 
@@ -81,9 +86,9 @@ grid_search = [
     # Dropout rate
     [0.5, 0.3, 0.1],
     # Memory per class,
-    [50, 100],
-    # Pretrained
-    [True]
+    [25, 50],
+    # Weight-aligning
+    [True, False]
 ]
 grid_search = list(itertools.product(*grid_search))
 
@@ -92,6 +97,7 @@ if not grid_search_ids:
     grid_search_ids = list(range(1, len(grid_search) + 1))
 
 if args.interactive:
+    print("Dropout-rate; Memory; Weight aligning")
     for i, x in enumerate(grid_search, 1):
         print(f'{i}) {x}')
     ids = input('Insert grid search ids: ')
@@ -99,16 +105,13 @@ if args.interactive:
 
 
 subprocess.run('ulimit -n 2048', shell=True)
-for (i, element) in enumerate(grid_search, 1):
-    # Process only ids
-    if i not in grid_search_ids:
-        continue
+for i in grid_search_ids:
 
     # Print grid search info
     print(f'{"=" * 20} Grid search {i}/{len(grid_search)} {"=" * 20}')
 
     # Unpack gridsearch
-    dropout, memory_per_class, _ = element
+    dropout, memory_per_class, weight_aligning = grid_search[i]
     architecture = config_dict['convnet_type']
     pretrained = config_dict['pretrained']
 
@@ -122,6 +125,7 @@ for (i, element) in enumerate(grid_search, 1):
     config_dict_temp['pretrained'] = pretrained
     config_dict_temp['dropout'] = dropout
     config_dict_temp['memory_per_class'] = memory_per_class
+    config_dict_temp['weight_aligning'] = weight_aligning
 
     # Generate temp config file
     with open(grid_search_path, "w") as outfile:
@@ -130,3 +134,7 @@ for (i, element) in enumerate(grid_search, 1):
     # Run
     command = f'python main.py --config {grid_search_path}'
     subprocess.run(command, shell=True)
+
+    if args.rm_checkpoint:
+        shutil.rmtree('model_checkpoint', ignore_errors=True)
+        os.makedirs('model_checkpoint', exist_ok=True)
