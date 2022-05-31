@@ -62,6 +62,9 @@ parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
 parser.add_argument('--architecture', type=str, required=True, default='resnet50',
                     help='Student architecture.')
 
+parser.add_argument('--memory-size', type=int, required=False, default=None,
+                    help='Memory size.')
+
 
 parsed_args = parser.parse_args()
 
@@ -69,7 +72,7 @@ assert 0 <= parsed_args.dropout < 1
 
 
 experiment_args = {
-    "run_name": "{}-drop{}",
+    "run_name": "{}-drop{}-mem{}",
     "prefix": "reproduce",
 
     "dataset": "LogoDet-3K_cropped",
@@ -86,7 +89,6 @@ experiment_args = {
     # Dataset
     "init_cls": parsed_args.init_cls,
     "increment": parsed_args.increment_cls,
-    "n_tasks": parsed_args.n_tasks,
 
     # Training
     "batch_size": parsed_args.batch,
@@ -95,8 +97,6 @@ experiment_args = {
     "early_stopping_delta": parsed_args.min_delta,
     "checkpoint_path": Path('model_checkpoint'),
 }
-
-parsed_args = parser.parse_args()
 
 
 def load_cil_model(cil_model_path):
@@ -248,7 +248,11 @@ class TeacherStudent(LightningModule):
 
 def train(args):
     # Init logger
-    args['run_name'] = args['run_name'].format(parsed_args.architecture, parsed_args.dropout)
+    args['run_name'] = args['run_name'].format(
+        parsed_args.architecture,
+        parsed_args.dropout,
+        f'{parsed_args.memory_size if parsed_args.memory_size else "_full"}'
+    )
     init_logger(args, 'logs')
     # Set up seed
     _set_random()
@@ -279,7 +283,7 @@ def train(args):
     wandb_logger = WandbLogger(project='knowledge-distillation', name=run_name, config=args)
 
     # Load dataset
-    train_loader, val_loader, test_loader = init_data(data_manager, args)
+    train_loader, val_loader, test_loader = init_data(data_manager, args, parsed_args.memory_size)
 
     # Training
     trainer = Trainer(
@@ -312,16 +316,43 @@ def init_datamanager(args):
     return data_manager
 
 
-def init_data(data_manager, args):
+def construct_memory_example(data_manager, m):
+
+    # Construct exemplars for new classes and calculate the means
+    examples_list = []
+    targets_list = []
+    for class_idx in range(0, len(data_manager._class_order)):
+        data, targets, _ = data_manager.get_dataset(
+            np.arange(class_idx, class_idx + 1),
+            source='train', mode='test', ret_data=True)
+
+        m_real = min(len(targets), m)
+
+        # Select
+        examples_list.append(np.random.choice(data, m_real))
+        targets_list.append(np.full(m_real, class_idx))
+
+    examples_list = np.concatenate(examples_list)
+    targets_list = np.concatenate(targets_list)
+    return data_manager.get_dataset([], 'train', 'train', appendent=[examples_list, targets_list])
+
+
+def init_data(data_manager, args, memory_size):
+    n_total_classes = len(data_manager._class_order)
+
     # Create dataset
-    train = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='train', mode='train')
-    val = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='val', mode='test')
-    test = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='test', mode='test')
+    if memory_size is None:
+        train = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='train', mode='train')
+    else:
+        train = construct_memory_example(data_manager, memory_size)
+
+    val = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='val', mode='test')
+    test = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='test', mode='test')
 
     # Sanity check
-    assert np.unique(train.labels).size == args['init_cls']
-    assert np.unique(val.labels).size == args['init_cls']
-    assert np.unique(test.labels).size == args['init_cls']
+    assert np.unique(train.labels).size == n_total_classes
+    assert np.unique(val.labels).size == n_total_classes
+    assert np.unique(test.labels).size == n_total_classes
 
     # Return dataloader
     return (
