@@ -228,12 +228,12 @@ class TeacherStudent(LightningModule):
     def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
         last = outputs[-1]
         self.log("train_loss", last['loss'])
-        self.log("train_acc", last['train_acc'])
+        self.log("train_acc", last['training_acc'])
 
     def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
         last = outputs[-1]
         self.log("val_loss", last['loss'])
-        self.log("val_acc", last['val_acc'])
+        self.log("val_acc", last['validation_acc'])
 
     def test_epoch_end(self, outputs: Union[EPOCH_OUTPUT, List[EPOCH_OUTPUT]]) -> None:
         last = outputs[-1]
