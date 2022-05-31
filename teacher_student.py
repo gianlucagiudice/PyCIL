@@ -5,8 +5,8 @@ from torch import nn
 
 from pathlib import Path
 
-from pycil.trainer import _set_random, print_args, init_logger
-from pycil.utils.data_manager import DataManager
+from trainer import _set_random, print_args, init_logger
+from utils.data_manager import DataManager
 
 
 from config import SEED
@@ -30,7 +30,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import torch
 import multiprocessing
 
-from pycil.utils.inc_net import DERNet
+from utils.inc_net import DERNet
 
 
 parser = argparse.ArgumentParser(description='Download LogoDet-3k.')
