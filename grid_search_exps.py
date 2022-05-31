@@ -125,7 +125,7 @@ for i in grid_search_ids:
     config_dict_temp['pretrained'] = pretrained
     config_dict_temp['dropout'] = dropout
     config_dict_temp['memory_per_class'] = memory_per_class
-    config_dict_temp['weight_aligning'] = weight_aligning
+    config_dict_temp['weight_align'] = weight_aligning
 
     # Generate temp config file
     with open(grid_search_path, "w") as outfile:
