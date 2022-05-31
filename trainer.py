@@ -135,7 +135,11 @@ def _train(args):
         'cil_class2idx': data_manager._class_to_idx,
         'cil_idx2class': data_manager._idx_to_class,
 
-        'cil_prediction2folder': map_prediction2folder(data_manager)
+        'cil_prediction2folder': map_prediction2folder(data_manager),
+
+        # Memory information
+        'data_memory': model._data_memory,
+        'target_memory': model._targets_memory,
     }
 
     # Dump dict
