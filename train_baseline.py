@@ -50,6 +50,10 @@ parser.add_argument('--n-tasks', type=int, required=False, default=None,
 parser.add_argument('--batch', type=int, required=False, default=256,
                     help='Batch size.')
 
+parser.add_argument('--lr', type=float, required=False, default=1e-3,
+                    help='Learning rate.')
+
+
 parser.add_argument('--epochs', type=int, required=False, default=150,
                     help='Number of maximum training epochs.')
 
@@ -58,7 +62,6 @@ parser.add_argument('--patience', type=int, required=False, default=30,
 
 parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
                     help='Min-delta early stopping.')
-
 
 parsed_args = parser.parse_args()
 
@@ -99,7 +102,7 @@ experiment_args = {
 
 class BaselineModel(LightningModule):
 
-    def __init__(self, args, model=None, lr=1e-3, batch_size=experiment_args['batch_size']):
+    def __init__(self, args, model=None, lr=parsed_args.lr, batch_size=experiment_args['batch_size']):
         super().__init__()
         # Save args
         self.args = args
