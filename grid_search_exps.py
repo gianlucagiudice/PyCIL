@@ -71,7 +71,7 @@ config_dict = {
     "adam": True,
 
     # Only top classes
-    "onlytop": True,
+    "onlytop": False,
 
     # Baseline method?
     "baseline": args.baseline,
