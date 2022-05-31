@@ -69,7 +69,7 @@ assert 0 <= parsed_args.dropout < 1
 
 
 experiment_args = {
-    "run_name": "knowledge_distillation-{}-drop{}",
+    "run_name": "{}-drop{}",
     "prefix": "reproduce",
 
     "dataset": "LogoDet-3K_cropped",
@@ -248,7 +248,7 @@ class TeacherStudent(LightningModule):
 
 def train(args):
     # Init logger
-    args['run_name'] = args['run_name'].format(args['convnet_type'], parsed_args.dropout)
+    args['run_name'] = args['run_name'].format(parsed_args.architecture, parsed_args.dropout)
     init_logger(args, 'logs')
     # Set up seed
     _set_random()
