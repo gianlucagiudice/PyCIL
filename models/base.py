@@ -247,7 +247,7 @@ class BaseLearner(object):
             old_m = m
             m_real = min(len(targets), m)
             if m_real < old_m:
-                logging.info('Warning! Not enough example for new class. {} examples will be used'.format(m))
+                logging.info('Warning! Not enough example for new class. {} examples will be used'.format(m_real))
 
             # Select
             selected_exemplars = []
