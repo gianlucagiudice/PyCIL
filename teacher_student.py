@@ -1,0 +1,347 @@
+import os
+
+from torch import nn
+
+
+from pathlib import Path
+
+from pycil.trainer import _set_random, print_args, init_logger
+from pycil.utils.data_manager import DataManager
+
+
+from config import SEED
+
+import argparse
+import logging
+from typing import Optional, List, Union, Any
+
+import numpy as np
+import torchvision.models
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.utilities.types import EPOCH_OUTPUT, STEP_OUTPUT
+
+from torch.utils.data import DataLoader
+
+from pytorch_lightning import LightningModule
+from pytorch_lightning import Trainer
+from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+
+import torch
+import multiprocessing
+
+from pycil.utils.inc_net import DERNet
+
+
+parser = argparse.ArgumentParser(description='Download LogoDet-3k.')
+
+parser.add_argument('--dropout', type=float, required=True,
+                    help='Dropout rate for fully connected layer.')
+
+parser.add_argument('--init-cls', type=int, required=True, default=None,
+                    help='Dropout rate for fully connected layer.')
+
+parser.add_argument('--increment-cls', type=int, required=True, default=None,
+                    help='Dropout rate for fully connected layer.')
+
+parser.add_argument('--n-tasks', type=int, required=False, default=None,
+                    help='Dropout rate for fully connected layer.')
+
+parser.add_argument('--batch', type=int, required=False, default=256,
+                    help='Batch size.')
+
+parser.add_argument('--epochs', type=int, required=False, default=150,
+                    help='Number of maximum training epochs.')
+
+parser.add_argument('--patience', type=int, required=False, default=30,
+                    help='Number of maximum training epochs.')
+
+parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
+                    help='Number of maximum training epochs.')
+
+parser.add_argument('--architecture', type=str, required=True, default='resnet50',
+                    help='Student architecture.')
+
+
+parsed_args = parser.parse_args()
+
+assert 0 <= parsed_args.dropout < 1
+
+
+experiment_args = {
+    "run_name": "knowledge_distillation-{}-drop{}",
+    "prefix": "reproduce",
+
+    "dataset": "LogoDet-3K_cropped",
+    "shuffle": True,
+    "model_name": "der",
+    "data_augmentation": True,
+    "seed": SEED,
+
+    # Grid search parameters
+    "dropout": parsed_args.dropout,
+    "convnet_type": 'resnet34',
+    "pretrained": True,
+
+    # Dataset
+    "init_cls": parsed_args.init_cls,
+    "increment": parsed_args.increment_cls,
+    "n_tasks": parsed_args.n_tasks,
+
+    # Training
+    "batch_size": parsed_args.batch,
+    "max_epoch": parsed_args.epochs,
+    "patience": parsed_args.patience,
+    "early_stopping_delta": parsed_args.min_delta,
+    "checkpoint_path": Path('model_checkpoint'),
+}
+
+parsed_args = parser.parse_args()
+
+
+def load_cil_model(cil_model_path):
+    device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+    model_dict = torch.load(cil_model_path, map_location=device)
+
+    cil_model = DERNet(model_dict['convnet_type'], model_dict['pretrained'], model_dict['dropout_rate'])
+
+    for n_classes in np.cumsum(model_dict['task_sizes']):
+        cil_model.update_fc(n_classes)
+
+    cil_model.load_state_dict(model_dict['state_dict'])
+
+    # Eval mode
+    cil_model.eval()
+
+    n_classes = len(model_dict['class_remap'])
+    assert len(model_dict['cil_class2idx']) == n_classes
+    assert len(model_dict['cil_idx2class']) == n_classes
+
+    return cil_model, model_dict['cil_idx2class'], model_dict['cil_class2idx'],  model_dict['cil_prediction2folder']
+
+
+class TeacherStudent(LightningModule):
+
+    def __init__(self, teacher_model, student_arch, args, model=None, lr=1e-3, batch_size=experiment_args['batch_size']):
+        super().__init__()
+        # Save args
+        self.args = args
+        self.save_hyperparameters(ignore="model")
+        # Datamanager
+        self.data_manager = None
+        # Teacher network
+        self.teacher_model = teacher_model
+        self.teacher_model.eval()
+        # Student network
+        self.student_model = None
+        # Define network backbone
+        self.init_network(student_arch)
+
+        # Losses
+        self.kl_div_loss = nn.KLDivLoss(log_target=True)
+        self.loss_func = nn.CrossEntropyLoss()
+
+        # Temperature
+        self.temperature: float = 5.
+
+        self.soft_targets_weight: float = 100.
+        self.label_loss_weight: float = 0.5
+
+    def init_network(self, arch):
+        resnet_backbone = getattr(torchvision.models, arch)(pretrained=True)
+        fc_in_features = resnet_backbone.fc.in_features
+        modules = list(resnet_backbone.children())[:-1]
+        resnet_backbone = nn.Sequential(*modules)
+        self.student_model = resnet_backbone
+
+        self.dropout = torch.nn.Dropout(self.args['dropout']) if self.args['dropout'] else None
+        self.fc = torch.nn.Linear(
+            in_features=fc_in_features,
+            out_features=self.teacher_model.fc.out_features
+        )
+
+    def info(self):
+        logging.info(self.student_model)
+        logging.info(self.dropout)
+        logging.info(self.fc)
+
+    def forward(self, x, *args, **kwargs) -> Any:
+        x = self.student_model(x)
+        x = torch.flatten(x, 1)
+
+        if self.dropout:
+            x = self.dropout(x)
+
+        x = self.fc(x)
+
+        return x
+
+    def training_step(self, batch, batch_idx):
+        soft_targets_loss, label_loss, loss, acc = self._step_helper(batch)
+        return dict(
+            loss_kl=soft_targets_loss,
+            loss_label=label_loss,
+            loss=loss,
+            training_acc=acc
+        )
+
+    def validation_step(self, batch, batch_idx):
+        soft_targets_loss, label_loss, loss, acc = self._step_helper(batch)
+        return dict(
+            loss_kl=soft_targets_loss,
+            loss_label=label_loss,
+            loss=loss,
+            validation_acc=acc
+        )
+
+    def test_step(self, batch, batch_idx) -> Optional[STEP_OUTPUT]:
+        soft_targets_loss, label_loss, loss, acc = self._step_helper(batch)
+        return dict(
+            loss_kl=soft_targets_loss,
+            loss_label=label_loss,
+            loss=loss,
+            test_acc=acc
+        )
+
+    def _step_helper(self, batch):
+        _, x, y = batch
+
+        student_logits = self.forward(x)
+        with torch.no_grad():
+            teacher_logits = self.teacher_model(x)['logits']
+
+        soft_targets = nn.functional.log_softmax(teacher_logits / self.temperature, dim=-1)
+        soft_prob = nn.functional.log_softmax(student_logits / self.temperature, dim=-1)
+
+        soft_targets_loss = self.kl_div_loss(soft_prob, soft_targets)
+        label_loss = self.loss_func(student_logits, y)
+
+        loss = self.soft_targets_weight * soft_targets_loss + self.label_loss_weight * label_loss
+
+        # Accuracy
+        _, preds = torch.max(student_logits, dim=1)
+        n_correct = preds.eq(y.expand_as(preds)).cpu().sum()
+        acc = n_correct / y.size(dim=0)
+
+        return soft_targets_loss, label_loss, loss, acc
+
+    def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+        last = outputs[-1]
+        self.log("train_loss", last['loss'])
+        self.log("train_acc", last['train_acc'])
+
+    def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+        last = outputs[-1]
+        self.log("val_loss", last['loss'])
+        self.log("val_acc", last['val_acc'])
+
+    def test_epoch_end(self, outputs: Union[EPOCH_OUTPUT, List[EPOCH_OUTPUT]]) -> None:
+        last = outputs[-1]
+        self.log("test_loss", last['loss'])
+        self.log("test_acc", last['test_acc'])
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters())
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[40, 80, 100], gamma=0.1)
+        return {'optimizer': optimizer, 'lr_scheduler': scheduler}
+
+
+def train(args):
+    # Init logger
+    args['run_name'] = args['run_name'].format(args['convnet_type'], parsed_args.dropout)
+    init_logger(args, 'logs')
+    # Set up seed
+    _set_random()
+    # Print args
+    print_args(args)
+
+    # Model
+    path = '../weights/CIL_1000_250_2993-mem100-resnet34-pretrained-drop0.5-augmented-onlytop-adam.pt'
+    cil_model, cil_idx2class, cil_class2idx, cil_class_remap = load_cil_model(path)
+    model = TeacherStudent(cil_model, parsed_args.architecture, args)
+
+    logging.info('Network architecture')
+    model.info()
+
+    # Datamanger
+    data_manager = init_datamanager(args)
+
+    # Create run name
+    arch = "resnet50"
+    # Create run name
+    run_name = args['run_name'].format(arch, parsed_args.dropout)
+
+    # Init checkpoint
+    os.makedirs(args['checkpoint_path'], exist_ok=True)
+    Path(args['checkpoint_path'] / Path(run_name).with_suffix('.ckpt')).unlink(missing_ok=True)
+
+    # Init the logger
+    wandb_logger = WandbLogger(project='knowledge-distillation', name=run_name, config=args)
+
+    # Load dataset
+    train_loader, val_loader, test_loader = init_data(data_manager, args)
+
+    # Training
+    trainer = Trainer(
+        log_every_n_steps=1, accelerator='auto', devices="auto",
+        max_epochs=args['max_epoch'],
+        logger=wandb_logger,
+        callbacks=[
+            # Early stopping
+            EarlyStopping(monitor="val_acc", min_delta=args['early_stopping_delta'], patience=args['patience'],
+                          verbose=True, mode="max"),
+            # Model Checkpoint
+            ModelCheckpoint(dirpath=args['checkpoint_path'], filename=run_name,
+                            monitor='val_acc', save_top_k=1, mode='max', verbose=True)
+        ]
+    )
+    # Train
+    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    # Test
+    trainer.test(
+        ckpt_path=str(Path(args['checkpoint_path']) / f"{run_name}.ckpt"),
+        dataloaders=test_loader
+    )
+
+
+def init_datamanager(args):
+    data_manager = DataManager(
+        args['dataset'], args['shuffle'], args['seed'], args['init_cls'],
+        args['increment'], data_augmentation=args['data_augmentation']
+    )
+    return data_manager
+
+
+def init_data(data_manager, args):
+    # Create dataset
+    train = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='train', mode='train')
+    val = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='val', mode='test')
+    test = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='test', mode='test')
+
+    # Sanity check
+    assert np.unique(train.labels).size == args['init_cls']
+    assert np.unique(val.labels).size == args['init_cls']
+    assert np.unique(test.labels).size == args['init_cls']
+
+    # Return dataloader
+    return (
+        init_dataloader(train, args['batch_size']),
+        init_dataloader(val, args['batch_size']),
+        init_dataloader(test, args['batch_size']),
+    )
+
+
+def init_dataloader(split, batch_size):
+    return DataLoader(
+        split,
+        batch_size=batch_size, shuffle=True, num_workers=multiprocessing.cpu_count()
+    )
+
+
+def main(args):
+    # Train the model
+    train(args)
+
+
+if __name__ == '__main__':
+    main(experiment_args)
