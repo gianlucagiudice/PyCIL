@@ -311,15 +311,16 @@ def init_datamanager(args):
 
 
 def init_data(data_manager, args):
+    n_total_classes = len(data_manager._class_order)
     # Create dataset
-    train = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='train', mode='train')
-    val = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='val', mode='test')
-    test = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='test', mode='test')
+    train = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='train', mode='train')
+    val = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='val', mode='test')
+    test = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='test', mode='test')
 
     # Sanity check
-    assert np.unique(train.labels).size == args['init_cls']
-    assert np.unique(val.labels).size == args['init_cls']
-    assert np.unique(test.labels).size == args['init_cls']
+    assert np.unique(train.labels).size == n_total_classes
+    assert np.unique(val.labels).size == n_total_classes
+    assert np.unique(test.labels).size == n_total_classes
 
     # Return dataloader
     return (
