@@ -260,14 +260,14 @@ class BaseLearner(object):
             class_mean = np.mean(vectors, axis=0)
 
             old_m = m
-            m = min(len(targets), m)
-            if m < old_m:
-                logging.info('Warning! Not enough example for new class. {} examples will be used'.format(m))
+            m_real = min(len(targets), m)
+            if m_real < old_m:
+                logging.info('Warning! Not enough example for new class. {} examples will be used'.format(m_real))
 
             # Select
             selected_exemplars = []
             exemplar_vectors = []
-            for k in range(1, m+1):
+            for k in range(1, m_real+1):
                 S = np.sum(exemplar_vectors, axis=0)  # [feature_dim] sum of selected exemplars vectors
                 mu_p = (vectors + S) / k  # [n, feature_dim] sum to all vectors
                 i = np.argmin(np.sqrt(np.sum((class_mean - mu_p) ** 2, axis=1)))
@@ -279,7 +279,7 @@ class BaseLearner(object):
                 data = np.delete(data, i, axis=0)  # Remove it to avoid duplicative selection
 
             selected_exemplars = np.array(selected_exemplars)
-            exemplar_targets = np.full(m, class_idx)
+            exemplar_targets = np.full(m_real, class_idx)
             self._data_memory = np.concatenate((self._data_memory, selected_exemplars)) if len(self._data_memory) != 0 \
                 else selected_exemplars
             self._targets_memory = np.concatenate((self._targets_memory, exemplar_targets)) if \
