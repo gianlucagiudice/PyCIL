@@ -86,7 +86,7 @@ grid_search = [
     # Dropout rate
     [0.5, 0.3, 0.1],
     # Memory per class,
-    [25, 50],
+    [10, 20, 50],
     # Weight-aligning
     [True, False]
 ]

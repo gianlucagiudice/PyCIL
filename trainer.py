@@ -142,6 +142,8 @@ def _train(args):
         'target_memory': model._targets_memory,
     }
 
+    logging.info('Dump completed!')
+
     # Dump dict
     torch.save(model_dict, model_path)
     # Attach dumped file to wandb run
@@ -151,6 +153,9 @@ def _train(args):
     artifact = wandb.Artifact(wandb.run.name, type='model')
     artifact.add_file(str(model_path))
     wandb.log_artifact(artifact)
+    # Artifact crated
+    logging.info('Artifact created!')
+
 
 
 def map_prediction2folder(data_manager):
