@@ -60,7 +60,7 @@ parser.add_argument('--epochs', type=int, required=False, default=150,
 parser.add_argument('--patience', type=int, required=False, default=30,
                     help='Patience for early stopping.')
 
-parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
+parser.add_argument('--min-delta', type=float, required=False, default=0,
                     help='Min-delta early stopping.')
 
 parsed_args = parser.parse_args()
