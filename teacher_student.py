@@ -32,6 +32,7 @@ import multiprocessing
 
 from utils.inc_net import DERNet
 
+from collections import Counter
 
 parser = argparse.ArgumentParser(description='Download LogoDet-3k.')
 
@@ -62,8 +63,8 @@ parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
 parser.add_argument('--architecture', type=str, required=True, default='resnet50',
                     help='Student architecture.')
 
-parser.add_argument('--memory-size', type=int, required=False, default=None,
-                    help='Memory size.')
+parser.add_argument('--use-memory', type=bool, required=False, default=True,
+                    help='Use data memory.')
 
 
 parsed_args = parser.parse_args()
@@ -117,7 +118,13 @@ def load_cil_model(cil_model_path):
     assert len(model_dict['cil_class2idx']) == n_classes
     assert len(model_dict['cil_idx2class']) == n_classes
 
-    return cil_model, model_dict['cil_idx2class'], model_dict['cil_class2idx'],  model_dict['cil_prediction2folder']
+    return (
+        cil_model,
+        model_dict['cil_idx2class'],
+        model_dict['cil_class2idx'],
+        model_dict['cil_prediction2folder'],
+        dict(data_memory=model_dict['data_memory'], target_memory=model_dict['target_memory'])
+    )
 
 
 class TeacherStudent(LightningModule):
@@ -247,22 +254,22 @@ class TeacherStudent(LightningModule):
 
 
 def train(args):
+    # Model
+    path = '../weights/CIL_1000_250_2993-WA-mem50-resnet34-pretrained-drop0.5-augmented-adam.pt'
+    cil_model, cil_idx2class, cil_class2idx, cil_class_remap, memory = load_cil_model(path)
+    model = TeacherStudent(cil_model, parsed_args.architecture, args)
+
     # Init logger
     args['run_name'] = args['run_name'].format(
         parsed_args.architecture,
         parsed_args.dropout,
-        f'{parsed_args.memory_size if parsed_args.memory_size else "_full"}'
+        f'{max(Counter(memory["target_memory"]).values()) if parsed_args.use_memory else "_full"}'
     )
     init_logger(args, 'logs')
     # Set up seed
     _set_random()
     # Print args
     print_args(args)
-
-    # Model
-    path = '../weights/CIL_1000_250_2993-mem100-resnet34-pretrained-drop0.5-augmented-onlytop-adam.pt'
-    cil_model, cil_idx2class, cil_class2idx, cil_class_remap = load_cil_model(path)
-    model = TeacherStudent(cil_model, parsed_args.architecture, args)
 
     logging.info('Network architecture')
     model.info()
@@ -283,7 +290,7 @@ def train(args):
     wandb_logger = WandbLogger(project='knowledge-distillation', name=run_name, config=args)
 
     # Load dataset
-    train_loader, val_loader, test_loader = init_data(data_manager, args, parsed_args.memory_size)
+    train_loader, val_loader, test_loader = init_data(data_manager, args, memory)
 
     # Training
     trainer = Trainer(
@@ -316,35 +323,15 @@ def init_datamanager(args):
     return data_manager
 
 
-def construct_memory_example(data_manager, m):
-
-    # Construct exemplars for new classes and calculate the means
-    examples_list = []
-    targets_list = []
-    for class_idx in range(0, len(data_manager._class_order)):
-        data, targets, _ = data_manager.get_dataset(
-            np.arange(class_idx, class_idx + 1),
-            source='train', mode='test', ret_data=True)
-
-        m_real = min(len(targets), m)
-
-        # Select
-        examples_list.append(np.random.choice(data, m_real))
-        targets_list.append(np.full(m_real, class_idx))
-
-    examples_list = np.concatenate(examples_list)
-    targets_list = np.concatenate(targets_list)
-    return data_manager.get_dataset([], 'train', 'train', appendent=[examples_list, targets_list])
-
-
-def init_data(data_manager, args, memory_size):
+def init_data(data_manager, args, memory):
     n_total_classes = len(data_manager._class_order)
 
     # Create dataset
-    if memory_size is None:
+    if not parsed_args.use_memory:
         train = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='train', mode='train')
     else:
-        train = construct_memory_example(data_manager, memory_size)
+        appendent = [memory['data_memory'], memory['target_memory']]
+        train = data_manager.get_dataset([], 'train', 'train', appendent=appendent)
 
     val = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='val', mode='test')
     test = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='test', mode='test')
