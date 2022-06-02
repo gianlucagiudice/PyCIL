@@ -33,6 +33,11 @@ import multiprocessing
 from utils.inc_net import DERNet
 
 from collections import Counter
+import pathlib
+
+
+FILE_PATH = pathlib.Path(__file__).parent.resolve()
+PROJECT_ROOT = (FILE_PATH / '..').resolve()
 
 parser = argparse.ArgumentParser(description='Download LogoDet-3k.')
 
@@ -330,7 +335,9 @@ def init_data(data_manager, args, memory):
     if not parsed_args.use_memory:
         train = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='train', mode='train')
     else:
-        appendent = [memory['data_memory'], memory['target_memory']]
+        resolve_path = lambda p: str(PROJECT_ROOT / os.path.join(*pathlib.Path(p).parts[-5:]))
+        data_memory = [resolve_path(x) for x in memory['data_memory']]
+        appendent = [data_memory, memory['target_memory']]
         train = data_manager.get_dataset([], 'train', 'train', appendent=appendent)
 
     val = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='val', mode='test')
