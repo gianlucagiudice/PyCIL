@@ -45,20 +45,23 @@ parser.add_argument('--increment-cls', type=int, required=True, default=None,
                     help='Dropout rate for fully connected layer.')
 
 parser.add_argument('--n-tasks', type=int, required=False, default=None,
-                    help='Dropout rate for fully connected layer.')
+                    help='Number of iterations for incremental learning.')
 
 parser.add_argument('--batch', type=int, required=False, default=256,
                     help='Batch size.')
+
+parser.add_argument('--lr', type=float, required=False, default=1e-3,
+                    help='Learning rate.')
+
 
 parser.add_argument('--epochs', type=int, required=False, default=150,
                     help='Number of maximum training epochs.')
 
 parser.add_argument('--patience', type=int, required=False, default=30,
-                    help='Number of maximum training epochs.')
+                    help='Patience for early stopping.')
 
-parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
-                    help='Number of maximum training epochs.')
-
+parser.add_argument('--min-delta', type=float, required=False, default=0,
+                    help='Min-delta early stopping.')
 
 parsed_args = parser.parse_args()
 
@@ -99,7 +102,7 @@ experiment_args = {
 
 class BaselineModel(LightningModule):
 
-    def __init__(self, args, model=None, lr=1e-3, batch_size=experiment_args['batch_size']):
+    def __init__(self, args, model=None, lr=parsed_args.lr, batch_size=experiment_args['batch_size']):
         super().__init__()
         # Save args
         self.args = args
@@ -311,15 +314,16 @@ def init_datamanager(args):
 
 
 def init_data(data_manager, args):
+    n_total_classes = len(data_manager._class_order)
     # Create dataset
-    train = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='train', mode='train')
-    val = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='val', mode='test')
-    test = data_manager.get_dataset(indices=np.arange(0, args['init_cls']), source='test', mode='test')
+    train = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='train', mode='train')
+    val = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='val', mode='test')
+    test = data_manager.get_dataset(indices=np.arange(0, n_total_classes), source='test', mode='test')
 
     # Sanity check
-    assert np.unique(train.labels).size == args['init_cls']
-    assert np.unique(val.labels).size == args['init_cls']
-    assert np.unique(test.labels).size == args['init_cls']
+    assert np.unique(train.labels).size == n_total_classes
+    assert np.unique(val.labels).size == n_total_classes
+    assert np.unique(test.labels).size == n_total_classes
 
     # Return dataloader
     return (
