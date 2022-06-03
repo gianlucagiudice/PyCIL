@@ -55,6 +55,7 @@ def _train(args):
     wandb.init(project='pycil', config=args, tags=tags)
 
     wandb.run.name = f"{'BASELINE-' if args.get('baseline', None) else ''}" \
+                     f"{'PRUNED_spars{}'.format(args['sparsity_lambda']) if args.get('sparsity_lambda', None) else ''}" \
                      f"CIL_{args['init_cls']}_{args['increment']}_{len(data_manager._class_order)}" \
                      f"-{'WA' if args['weight_align'] else 'noWA'}" \
                      f"-mem{args['memory_per_class']}" \
@@ -113,7 +114,6 @@ def _train(args):
             'CIL/memory_size': model._data_memory.size,
             'task': task})
 
-
     # Save the model
     logging.info('Saving the model . . .')
     PYCIL_PATH = Path(__file__).parent.resolve()
@@ -124,7 +124,7 @@ def _train(args):
     # Create dict
     model_dict = {
         'dropout_rate': model._network.dropout.p,
-        'pretrained':  model._network.pretrained,
+        'pretrained': model._network.pretrained,
         'convnet_type': model._network.convnet_type,
         'task_sizes': model._network.task_sizes,
         'feature_dim': model._network.feature_dim,
@@ -155,7 +155,6 @@ def _train(args):
     wandb.log_artifact(artifact)
     # Artifact crated
     logging.info('Artifact created!')
-
 
 
 def map_prediction2folder(data_manager):
