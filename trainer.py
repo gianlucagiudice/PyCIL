@@ -56,6 +56,7 @@ def _train(args):
 
     wandb.run.name = f"{'BASELINE-' if args.get('baseline', None) else ''}" \
                      f"CIL_{args['init_cls']}_{args['increment']}_{len(data_manager._class_order)}" \
+                     f"-{'WA' if args['weight_align'] else 'noWA'}" \
                      f"-mem{args['memory_per_class']}" \
                      f"-{args['convnet_type']}" \
                      f"-{'pretrained' if args['pretrained'] else 'nopretrained'}" \
@@ -69,6 +70,7 @@ def _train(args):
     _set_device(args)
 
     print_args(args)
+    logging.info(f'Run name: {wandb.run.name}\n')
 
     model = factory.get_model(args['model_name'], args)
 
@@ -105,8 +107,12 @@ def _train(args):
             logging.info('CNN top5 curve: {}\n'.format(cnn_curve['top5']))
 
         wandb.log({
-            'CIL/top1_acc': cnn_accy['top1'], 'CIL/top5_acc': cnn_accy['top5'],
-            'CIL/n_parameters': round(count_parameters(model._network) / 10**6, 2), 'task': task})
+            'CIL/top1_acc': cnn_accy['top1'],
+            'CIL/top5_acc': cnn_accy['top5'],
+            'CIL/n_parameters': round(count_parameters(model._network) / 10 ** 6, 2),
+            'CIL/memory_size': model._data_memory.size,
+            'task': task})
+
 
     # Save the model
     logging.info('Saving the model . . .')
@@ -129,8 +135,14 @@ def _train(args):
         'cil_class2idx': data_manager._class_to_idx,
         'cil_idx2class': data_manager._idx_to_class,
 
-        'cil_prediction2folder': map_prediction2folder(data_manager)
+        'cil_prediction2folder': map_prediction2folder(data_manager),
+
+        # Memory information
+        'data_memory': model._data_memory,
+        'target_memory': model._targets_memory,
     }
+
+    logging.info('Dump completed!')
 
     # Dump dict
     torch.save(model_dict, model_path)
@@ -141,6 +153,9 @@ def _train(args):
     artifact = wandb.Artifact(wandb.run.name, type='model')
     artifact.add_file(str(model_path))
     wandb.log_artifact(artifact)
+    # Artifact crated
+    logging.info('Artifact created!')
+
 
 
 def map_prediction2folder(data_manager):
