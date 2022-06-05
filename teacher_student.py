@@ -71,6 +71,9 @@ parser.add_argument('--architecture', type=str, required=True, default='resnet50
 parser.add_argument('--use-memory', type=bool, required=False, default=True,
                     help='Use data memory.')
 
+parser.add_argument('--teacher-path', type=str, required=True, default=None,
+                    help='Teacher model path.')
+
 
 parsed_args = parser.parse_args()
 
