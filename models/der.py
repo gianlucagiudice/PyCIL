@@ -39,10 +39,15 @@ class DER(BaseLearner):
 
     def __init__(self, args):
         super().__init__(args)
-        self._network = DERNet(args['convnet_type'], args['pretrained'], dropout=args.get('dropout'))
+        self.sparsity_lambda = args.get('sparsity_lambda', 0)
+        self._network = DERNet(
+            args['convnet_type'],
+            args['pretrained'],
+            dropout=args.get('dropout'),
+            do_pruning=True if self.sparsity_lambda != 0 else False
+        )
         self.weight_align = args.get('weight_align', True)
         self.min_delta = args.get('min_delta', 0)
-        self.sparsity_lambda = args.get('sparsity_lambda', 0)
 
     def after_task(self):
         self._known_classes = self._total_classes

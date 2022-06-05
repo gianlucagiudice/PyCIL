@@ -252,7 +252,7 @@ s_max = 1000
 
 
 class DERNet(nn.Module):
-    def __init__(self, convnet_type, pretrained, dropout=None, sparsity_lambda=0):
+    def __init__(self, convnet_type, pretrained, dropout=None, do_pruning=False):
         super(DERNet, self).__init__()
         self.old_state_dict = None
         self.s = None
@@ -267,8 +267,7 @@ class DERNet(nn.Module):
         self.dropout = nn.Dropout(p=dropout) if dropout else None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.pruned = False
-
-        self.do_pruning = sparsity_lambda != 0
+        self.do_pruning = do_pruning
 
     @property
     def feature_dim(self):
@@ -284,7 +283,7 @@ class DERNet(nn.Module):
     def forward(self, x, b=None, B=None):
         if self.do_pruning:
             if self.training:
-                s = (1 / s_max) + (s_max - (1 / s_max)) * (b / (B-1))
+                s = (1 / s_max) + (s_max - (1 / s_max)) * (b / max(B-1, 1))
             else:
                 s = s_max
             self.s = torch.tensor(s, requires_grad=False)
