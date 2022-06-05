@@ -111,120 +111,39 @@ class DER(BaseLearner):
     def _train(self, train_loader, validation_loader):
         self._network.to(self._device)
         if self._cur_task == 0:
-            parameters = list(filter(lambda p: p.requires_grad, self._network.parameters()))
-
-            # Embeddings for pruning
-            if self.sparsity_lambda:
-                parameters += self._network.module.e
-
-            optimizer = optim.Adam(parameters, lr=init_lr, weight_decay=init_weight_decay)
-
-            scheduler = optim.lr_scheduler.MultiStepLR(
-                optimizer=optimizer, milestones=init_milestones, gamma=init_lr_decay)
-            self._init_train(train_loader, validation_loader, optimizer, scheduler)
+            lr_task, weight_decay_task = init_lr, init_weight_decay
+            milestones_task, gamma_task = init_milestones, init_lr_decay
         else:
-            parameters = list(filter(lambda p: p.requires_grad, self._network.parameters()))
+            lr_task, weight_decay_task = lrate_decay, weight_decay
+            milestones_task, gamma_task = milestones, lrate_decay
 
-            # Embeddings for pruning
-            if self.sparsity_lambda:
-                parameters += self._network.module.e
+        parameters = list(filter(lambda p: p.requires_grad, self._network.parameters()))
 
-            optimizer = optim.Adam(parameters)
+        # Embeddings for pruning
+        if self.sparsity_lambda:
+            parameters += self._network.module.e
 
-            scheduler = optim.lr_scheduler.MultiStepLR(
-                optimizer=optimizer, milestones=milestones, gamma=lrate_decay)
-            self._update_representation(train_loader, validation_loader, optimizer, scheduler)
-            if self.weight_align:
-                self._network.module.weight_align(self._total_classes - self._known_classes)
+        optimizer = optim.Adam(parameters, lr=lr_task, weight_decay=weight_decay_task)
 
-    def _init_train(
-            self, train_loader, val_loader, optimizer, scheduler, patience=init_early_stop_patience):
-        val_acc_list = []
-        prog_bar = tqdm(range(init_epoch))
+        scheduler = optim.lr_scheduler.MultiStepLR(
+            optimizer=optimizer, milestones=milestones_task, gamma=gamma_task)
+        self._update_representation(train_loader, validation_loader, optimizer, scheduler)
 
-        # Early stopping
-        best_network_so_far = self._network.module.copy()
-        best_stopping_value = float('inf')
-        curr_patience = patience
-
-        for _, epoch in enumerate(prog_bar):
-
-            # Early stopping
-            if curr_patience == 0:
-                logging.info(f"Early stopping on task {self._cur_task}, Epoch {epoch}/{epochs}")
-                break
-
-            self.train()
-            losses = 0.
-            losses_sparsity = 0.
-            correct, total = 0, 0
-
-            # Sparsity loss
-            for b, (_, inputs, targets) in enumerate(train_loader):
-                inputs, targets = inputs.to(self._device), targets.to(self._device)
-                outputs = self._network(inputs, b=b, B=len(train_loader))
-                logits = outputs['logits']
-                sparsity = outputs['sparsity_loss']
-                loss = F.cross_entropy(logits, targets) + (sparsity_lambda * sparsity)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-                losses += loss.item()
-                losses_sparsity += sparsity.item()
-
-                _, preds = torch.max(logits, dim=1)
-                correct += preds.eq(targets.expand_as(preds)).cpu().sum()
-                total += len(targets)
-
-            scheduler.step()
-            train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
-
-            val_acc, loss = self._compute_accuracy(
-                self._network, val_loader, sparsity_lambda=sparsity_lambda)
-
-
-            # Early stopping
-            stopping_value = sum(loss.values())
-
-            if stopping_value + self.min_delta <= best_stopping_value:
-                curr_patience = patience
-                best_network_so_far = self._network.module.copy()
-                best_stopping_value = stopping_value
-            else:
-                curr_patience -= 1
-
-            info = 'Task {}, Epoch {}/{} =>' \
-                   'Loss {:.3f}, Loss_sparsity {:.3f},' \
-                   'Train_accy {:.2f}, Val_accy {:.2f}'\
-                .format(self._cur_task, epoch + 1, init_epoch, losses / len(train_loader),
-                        losses_sparsity / len(train_loader), train_acc, val_acc)
-            val_acc_list.append(val_acc)
-
-            prog_bar.set_description(info)
-
-            # Wandb
-            wandb.log({
-                f'task{0}/train_acc': train_acc,
-                f'task{0}/val_acc': val_acc,
-                f'task{0}/val_clf_loss': loss['clf'],
-                f'task{0}/val_sparsity_loss': loss['sparsity'],
-                f'task{0}/val_loss': sum(loss.values()),
-                'epoch': epoch})
-
-        # Use the best network
-        self._network.module = best_network_so_far
-
-        logging.info(info)
-        logging.info(f'Task {self._cur_task}, Accuracy validation history => {val_acc_list}')
+        if self._cur_task > 0 and self.weight_align:
+            self._network.module.weight_align(self._total_classes - self._known_classes)
 
     def _update_representation(
-            self, train_loader, test_loader, optimizer, scheduler, patience=early_stop_patience):
+            self, train_loader, val_loader, optimizer, scheduler, patience=early_stop_patience):
         val_acc_list = []
         prog_bar = tqdm(range(epochs))
 
         # Early stopping
         best_network_so_far = self._network.module.copy()
-        best_stopping_value = float('inf')
+        if self.sparsity_lambda != 0:
+            best_stopping_value = float('inf')
+        else:
+            best_stopping_value = 0
+
         curr_patience = patience
 
         for _, epoch in enumerate(prog_bar):
@@ -268,12 +187,20 @@ class DER(BaseLearner):
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
             val_acc, loss = self._compute_accuracy(
-                self._network, test_loader, sparsity_lambda=sparsity_lambda)
+                self._network, val_loader, sparsity_lambda=sparsity_lambda)
 
             # Early stopping
-            stopping_value = sum(loss.values())
+            if self.sparsity_lambda != 0:
+                stopping_value = sum(loss.values())
+            else:
+                stopping_value = val_acc
 
-            if stopping_value + self.min_delta <= best_stopping_value:
+            if self.sparsity_lambda != 0:
+                need_to_stop = lambda x: x + self.min_delta <= best_stopping_value
+            else:
+                need_to_stop = lambda x: x - self.min_delta >= best_stopping_value
+
+            if need_to_stop(stopping_value):
                 curr_patience = patience
                 best_network_so_far = self._network.module.copy()
                 best_stopping_value = stopping_value
@@ -294,12 +221,13 @@ class DER(BaseLearner):
             prog_bar.set_description(info)
 
             # Wandb
-            wandb.log({f'task{self._cur_task}/train_acc': train_acc,
-                       f'task{self._cur_task}/val_acc': val_acc,
-                       f'task{self._cur_task}/val_clf_loss': loss['clf'],
-                       f'task{self._cur_task}/val_sparsity_loss': loss['sparsity'],
-                       f'task{self._cur_task}/val_loss': sum(loss.values()),
-                       'epoch': epoch})
+            wandb.log({
+                f'task{self._cur_task}/train_acc': train_acc,
+                f'task{self._cur_task}/val_acc': val_acc,
+                f'task{self._cur_task}/val_clf_loss': loss['clf'],
+                f'task{self._cur_task}/val_sparsity_loss': loss['sparsity'],
+                f'task{self._cur_task}/val_loss': sum(loss.values()),
+                'epoch': epoch})
 
         # Use the best network
         self._network.module = best_network_so_far

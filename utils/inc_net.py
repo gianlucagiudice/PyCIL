@@ -320,8 +320,9 @@ class DERNet(nn.Module):
                 n += kernel_size * norm_l * norm_l_prev
                 d += kernel_size * self.convolutions[l].weight.shape[1] * self.convolutions[l-1].weight.shape[1]
             sparsity_loss = n / d
-            out.update({"sparsity_loss": sparsity_loss})
-        out.update({"aux_logits": aux_logits, "features": features})
+        else:
+            sparsity_loss = torch.tensor(0)
+        out.update({"aux_logits": aux_logits, "features": features, "sparsity_loss": sparsity_loss})
         return out
 
     @torch.no_grad()
