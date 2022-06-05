@@ -109,8 +109,6 @@ class BaselineModel(LightningModule):
         self.save_hyperparameters(ignore="model")
         # Datamanager
         self.data_manager = None
-        # Best validation
-        self.best_val_acc = 0
         self.test_acc = None
         # Define network backbone
         self.init_network()
@@ -155,7 +153,6 @@ class BaselineModel(LightningModule):
         last = outputs[-1]
         self.log("val_loss", last['loss'])
         self.log("val_acc", last['val_acc'])
-        self.best_val_acc = max(self.best_val_acc, last['val_acc'])
 
     def test_epoch_end(self, outputs: Union[EPOCH_OUTPUT, List[EPOCH_OUTPUT]]) -> None:
         last = outputs[-1]
