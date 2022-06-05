@@ -56,7 +56,7 @@ def _train(args):
 
     wandb.run.name = f"{'BASELINE-' if args.get('baseline', None) else ''}" \
                      f"{'PRUNED_spars{}'.format(args['sparsity_lambda']) if args.get('sparsity_lambda', None) else ''}" \
-                     f"CIL_{args['init_cls']}_{args['increment']}_{len(data_manager._class_order)}" \
+                     f"CIL_{int(args['init_cls'])}_{args['increment']}_{len(data_manager._class_order)}" \
                      f"-{'WA' if args['weight_align'] else 'noWA'}" \
                      f"-mem{args['memory_per_class']}" \
                      f"-{args['convnet_type']}" \
