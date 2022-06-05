@@ -167,7 +167,7 @@ class DER(BaseLearner):
                 aux_targets = torch.where(aux_targets - self._known_classes + 1 > 0,
                                           aux_targets - self._known_classes + 1, 0)
                 loss_aux = F.cross_entropy(aux_logits, aux_targets)
-                loss = loss_clf + loss_aux + (sparsity_lambda * loss_sparsity)
+                loss = loss_clf + loss_aux + (self.sparsity_lambda * loss_sparsity)
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -185,7 +185,7 @@ class DER(BaseLearner):
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
 
             val_acc, loss = self._compute_accuracy(
-                self._network, val_loader, sparsity_lambda=sparsity_lambda)
+                self._network, val_loader, sparsity_lambda=self.sparsity_lambda)
 
             # Early stopping
             if self.sparsity_lambda != 0:
