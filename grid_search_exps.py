@@ -35,6 +35,9 @@ parser.add_argument('--weight-align', action=argparse.BooleanOptionalAction,
 parser.add_argument('--rm-checkpoint', action=argparse.BooleanOptionalAction,
                     help='Remove model checkpoint.', required=False, default=True)
 
+parser.add_argument('--sparsity-lambda', type=float, required=True, default=None,
+                    help='Perform the pruning of the model.')
+
 args = parser.parse_args()
 
 config_dict = {
@@ -76,7 +79,11 @@ config_dict = {
     # Baseline method?
     "baseline": args.baseline,
 
-    "grid_search_ids": args.grid_ids
+    "grid_search_ids": args.grid_ids,
+
+    # Pruning
+    "sparsity_lambda": args.sparsity_lambda
+
 }
 
 
