@@ -245,7 +245,6 @@ class DER(BaseLearner):
             wandb.log({
                 f'task{self._cur_task}/train_acc': train_acc,
                 f'task{self._cur_task}/val_acc': val_acc,
-                f'task{self._cur_task}/val_clf_loss': loss['clf'],
                 f'task{self._cur_task}/val_loss': sum(loss.values()),
                 'epoch': epoch})
 
