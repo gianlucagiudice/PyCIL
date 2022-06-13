@@ -263,8 +263,7 @@ class TeacherStudent(LightningModule):
 
 def train(args):
     # Model
-    path = '../weights/CIL_1000_250_2993-WA-mem50-resnet34-pretrained-drop0.5-augmented-adam.pt'
-    cil_model, cil_idx2class, cil_class2idx, cil_class_remap, memory = load_cil_model(path)
+    cil_model, cil_idx2class, cil_class2idx, cil_class_remap, memory = load_cil_model(parsed_args.teacher_path)
     model = TeacherStudent(cil_model, parsed_args.architecture, args)
 
     # Init logger
