@@ -2,12 +2,9 @@ import os
 
 from torch import nn
 
+import wandb
 
 from pathlib import Path
-
-from trainer import _set_random, print_args, init_logger
-from utils.data_manager import DataManager
-
 
 from config import SEED
 
@@ -30,82 +27,86 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import torch
 import multiprocessing
 
-from utils.inc_net import DERNet
 
 from collections import Counter
 import pathlib
 
 
-FILE_PATH = pathlib.Path(__file__).parent.resolve()
-PROJECT_ROOT = (FILE_PATH / '..').resolve()
+if __name__ == '__main__':
+    from pycil.utils.inc_net import DERNet
+    from pycil.utils.data_manager import DataManager
+    from trainer import _set_random, print_args, init_logger
 
-parser = argparse.ArgumentParser(description='Download LogoDet-3k.')
+    FILE_PATH = pathlib.Path(__file__).parent.resolve()
+    PROJECT_ROOT = (FILE_PATH / '..').resolve()
 
-parser.add_argument('--dropout', type=float, required=True,
-                    help='Dropout rate for fully connected layer.')
+    parser = argparse.ArgumentParser(description='Download LogoDet-3k.')
 
-parser.add_argument('--init-cls', type=int, required=True, default=None,
-                    help='Dropout rate for fully connected layer.')
+    parser.add_argument('--dropout', type=float, required=True,
+                        help='Dropout rate for fully connected layer.')
 
-parser.add_argument('--increment-cls', type=int, required=True, default=None,
-                    help='Dropout rate for fully connected layer.')
+    parser.add_argument('--init-cls', type=int, required=True, default=None,
+                        help='Dropout rate for fully connected layer.')
 
-parser.add_argument('--n-tasks', type=int, required=False, default=None,
-                    help='Dropout rate for fully connected layer.')
+    parser.add_argument('--increment-cls', type=int, required=True, default=None,
+                        help='Dropout rate for fully connected layer.')
 
-parser.add_argument('--batch', type=int, required=False, default=256,
-                    help='Batch size.')
+    parser.add_argument('--n-tasks', type=int, required=False, default=None,
+                        help='Dropout rate for fully connected layer.')
 
-parser.add_argument('--epochs', type=int, required=False, default=150,
-                    help='Number of maximum training epochs.')
+    parser.add_argument('--batch', type=int, required=False, default=256,
+                        help='Batch size.')
 
-parser.add_argument('--patience', type=int, required=False, default=30,
-                    help='Number of maximum training epochs.')
+    parser.add_argument('--epochs', type=int, required=False, default=150,
+                        help='Number of maximum training epochs.')
 
-parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
-                    help='Number of maximum training epochs.')
+    parser.add_argument('--patience', type=int, required=False, default=30,
+                        help='Number of maximum training epochs.')
 
-parser.add_argument('--architecture', type=str, required=True, default='resnet50',
-                    help='Student architecture.')
+    parser.add_argument('--min-delta', type=float, required=False, default=0.0025,
+                        help='Number of maximum training epochs.')
 
-parser.add_argument('--use-memory', type=bool, required=False, default=True,
-                    help='Use data memory.')
+    parser.add_argument('--architecture', type=str, required=True, default='resnet50',
+                        help='Student architecture.')
 
-parser.add_argument('--teacher-path', type=str, required=True, default=None,
-                    help='Teacher model path.')
+    parser.add_argument('--use-memory', type=bool, required=False, default=True,
+                        help='Use data memory.')
 
-
-parsed_args = parser.parse_args()
-
-assert 0 <= parsed_args.dropout < 1
+    parser.add_argument('--teacher-path', type=str, required=True, default=None,
+                        help='Teacher model path.')
 
 
-experiment_args = {
-    "run_name": "{}-drop{}-mem{}",
-    "prefix": "reproduce",
+    parsed_args = parser.parse_args()
 
-    "dataset": "LogoDet-3K_cropped",
-    "shuffle": True,
-    "model_name": "der",
-    "data_augmentation": True,
-    "seed": SEED,
+    assert 0 <= parsed_args.dropout < 1
 
-    # Grid search parameters
-    "dropout": parsed_args.dropout,
-    "convnet_type": 'resnet34',
-    "pretrained": True,
 
-    # Dataset
-    "init_cls": parsed_args.init_cls,
-    "increment": parsed_args.increment_cls,
+    experiment_args = {
+        "run_name": "{}-drop{}-mem{}",
+        "prefix": "reproduce",
 
-    # Training
-    "batch_size": parsed_args.batch,
-    "max_epoch": parsed_args.epochs,
-    "patience": parsed_args.patience,
-    "early_stopping_delta": parsed_args.min_delta,
-    "checkpoint_path": Path('model_checkpoint'),
-}
+        "dataset": "LogoDet-3K_cropped",
+        "shuffle": True,
+        "model_name": "der",
+        "data_augmentation": True,
+        "seed": SEED,
+
+        # Grid search parameters
+        "dropout": parsed_args.dropout,
+        "convnet_type": 'resnet34',
+        "pretrained": True,
+
+        # Dataset
+        "init_cls": parsed_args.init_cls,
+        "increment": parsed_args.increment_cls,
+
+        # Training
+        "batch_size": parsed_args.batch,
+        "max_epoch": parsed_args.epochs,
+        "patience": parsed_args.patience,
+        "early_stopping_delta": parsed_args.min_delta,
+        "checkpoint_path": Path('model_checkpoint'),
+    }
 
 
 def load_cil_model(cil_model_path):
@@ -137,7 +138,7 @@ def load_cil_model(cil_model_path):
 
 class TeacherStudent(LightningModule):
 
-    def __init__(self, teacher_model, student_arch, args, model=None, lr=1e-3, batch_size=experiment_args['batch_size']):
+    def __init__(self, teacher_model, student_arch, args, model=None, lr=1e-3, batch_size=256):
         super().__init__()
         # Save args
         self.args = args
@@ -294,7 +295,7 @@ def train(args):
     Path(args['checkpoint_path'] / Path(run_name).with_suffix('.ckpt')).unlink(missing_ok=True)
 
     # Init the logger
-    wandb_logger = WandbLogger(log_modells=True, project='knowledge-distillation', name=run_name, config=args)
+    wandb_logger = WandbLogger(project='knowledge-distillation', name=run_name, config=args)
 
     # Load dataset
     train_loader, val_loader, test_loader = init_data(data_manager, args, memory)
@@ -320,6 +321,22 @@ def train(args):
         ckpt_path=str(Path(args['checkpoint_path']) / f"{run_name}.ckpt"),
         dataloaders=test_loader
     )
+
+    # Create artifact
+    logging.info('Dumping ...')
+    final_dict = {'args': args, 'arch': parsed_args.architecture, 'state_dict': model.state_dict()}
+    dict_path = str(Path(args['checkpoint_path'] / Path(run_name))) + '.pt'
+    torch.save(final_dict, dict_path)
+    # Attach dumped file to wandb run
+    res = wandb.save(str(dict_path))
+    assert res is not None
+    logging.info('Dump completed!')
+    # Create artifact
+    artifact = wandb.Artifact(wandb_logger.experiment.name, type='model')
+    artifact.add_file(str(dict_path))
+    wandb.log_artifact(artifact)
+    # Artifact crated
+    logging.info('Artifact created!')
 
 
 def init_datamanager(args):
