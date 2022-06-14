@@ -294,7 +294,7 @@ def train(args):
     Path(args['checkpoint_path'] / Path(run_name).with_suffix('.ckpt')).unlink(missing_ok=True)
 
     # Init the logger
-    wandb_logger = WandbLogger(project='knowledge-distillation', name=run_name, config=args)
+    wandb_logger = WandbLogger(log_modells=True, project='knowledge-distillation', name=run_name, config=args)
 
     # Load dataset
     train_loader, val_loader, test_loader = init_data(data_manager, args, memory)
