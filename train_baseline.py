@@ -47,12 +47,11 @@ parser.add_argument('--increment-cls', type=int, required=True, default=None,
 parser.add_argument('--n-tasks', type=int, required=False, default=None,
                     help='Number of iterations for incremental learning.')
 
-parser.add_argument('--batch', type=int, required=False, default=256,
+parser.add_argument('--batch', type=int, required=False, default=512,
                     help='Batch size.')
 
 parser.add_argument('--lr', type=float, required=False, default=1e-3,
                     help='Learning rate.')
-
 
 parser.add_argument('--epochs', type=int, required=False, default=150,
                     help='Number of maximum training epochs.')
@@ -60,7 +59,7 @@ parser.add_argument('--epochs', type=int, required=False, default=150,
 parser.add_argument('--patience', type=int, required=False, default=30,
                     help='Patience for early stopping.')
 
-parser.add_argument('--min-delta', type=float, required=False, default=0,
+parser.add_argument('--min-delta', type=float, required=False, default=0.005,
                     help='Min-delta early stopping.')
 
 parsed_args = parser.parse_args()
@@ -100,6 +99,10 @@ experiment_args = {
 }
 
 
+def batch_mean(outputs, metric):
+    return torch.stack([torch.tensor(x[metric]) for x in outputs]).mean()
+
+
 class BaselineModel(LightningModule):
 
     def __init__(self, args, model=None, lr=parsed_args.lr, batch_size=experiment_args['batch_size']):
@@ -110,6 +113,7 @@ class BaselineModel(LightningModule):
         # Datamanager
         self.data_manager = None
         self.test_acc = None
+        self.test_acc5 = None
         # Define network backbone
         self.init_network()
 
@@ -122,46 +126,57 @@ class BaselineModel(LightningModule):
         pass
 
     def training_step(self, batch, batch_idx):
-        loss, train_acc = self._step_helper(batch)
-        return dict(loss=loss, train_acc=train_acc)
+        loss, train_acc, train_acc5 = self._step_helper(batch)
+        return dict(loss=loss, train_acc=train_acc, train_acc5=train_acc5)
 
     def validation_step(self, batch, batch_idx):
-        loss, val_acc = self._step_helper(batch)
-        return dict(loss=loss, val_acc=val_acc)
+        loss, val_acc, val_acc5 = self._step_helper(batch)
+        return dict(loss=loss, val_acc=val_acc, val_acc5=val_acc5)
 
     def test_step(self, batch, batch_idx) -> Optional[STEP_OUTPUT]:
-        loss, test_acc = self._step_helper(batch)
-        return dict(loss=loss, test_acc=test_acc)
+        loss, test_acc, test_acc5 = self._step_helper(batch)
+        return dict(loss=loss, test_acc=test_acc, test_acc5=test_acc5)
 
     def _step_helper(self, batch):
         _, x, y = batch
         logits = self.forward(x)
         loss = F.cross_entropy(logits, y)
-        # Accuracy
-        _, preds = torch.max(logits, dim=1)
-        n_correct = preds.eq(y.expand_as(preds)).cpu().sum()
-        acc = n_correct / y.size(dim=0)
 
-        return loss, acc
+        y = y.unsqueeze(-1)
+
+        _, preds = torch.sort(logits, dim=1, descending=True)
+
+        acc1 = ((preds[:, 0:1] == y).sum(dim=0) / y.shape[0]).item()
+        acc5 = ((preds[:, 0:5] == y).sum(dim=1).sum(dim=0) / y.shape[0]).item()
+
+        return loss, acc1, acc5
 
     def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
-        last = outputs[-1]
-        self.log("train_loss", last['loss'])
-        self.log("train_acc", last['train_acc'])
+        self.log("train_loss", batch_mean(outputs, 'loss'))
+        self.log("train_acc", batch_mean(outputs, 'train_acc'))
+        self.log("train_acc5", batch_mean(outputs, 'train_acc5'))
 
     def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
-        last = outputs[-1]
-        self.log("val_loss", last['loss'])
-        self.log("val_acc", last['val_acc'])
+        self.log("val_loss", batch_mean(outputs, 'loss'))
+        self.log("val_acc", batch_mean(outputs, 'val_acc'))
+        self.log("val_acc5", batch_mean(outputs, 'val_acc5'))
 
     def test_epoch_end(self, outputs: Union[EPOCH_OUTPUT, List[EPOCH_OUTPUT]]) -> None:
-        last = outputs[-1]
-        self.log("test_loss", last['loss'])
-        self.log("test_acc", last['test_acc'])
-        self.test_acc = last['test_acc']
+        self.test_acc = batch_mean(outputs, 'test_acc')
+        self.test_acc5 = batch_mean(outputs, 'test_acc5')
+
+        self.log("test_loss", batch_mean(outputs, 'loss'))
+        self.log("test_acc", self.test_acc)
+        self.log("test_acc", self.test_acc5)
 
     def on_test_end(self) -> None:
-        self.logger.log_metrics({'CIL/top1_acc': self.test_acc * 100, 'task': 0})
+        self.logger.log_metrics(
+            {
+                'CIL/top1_acc': self.test_acc * 100,
+                'CIL/top5_acc': self.test_acc5 * 100,
+                'task': 0
+            }
+        )
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())
