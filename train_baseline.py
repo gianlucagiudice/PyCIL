@@ -167,7 +167,7 @@ class BaselineModel(LightningModule):
 
         self.log("test_loss", batch_mean(outputs, 'loss'))
         self.log("test_acc", self.test_acc)
-        self.log("test_acc", self.test_acc5)
+        self.log("test_acc5", self.test_acc5)
 
     def on_test_end(self) -> None:
         self.logger.log_metrics(
