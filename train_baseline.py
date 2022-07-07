@@ -56,7 +56,7 @@ parser.add_argument('--lr', type=float, required=False, default=1e-3,
 parser.add_argument('--epochs', type=int, required=False, default=150,
                     help='Number of maximum training epochs.')
 
-parser.add_argument('--patience', type=int, required=False, default=30,
+parser.add_argument('--patience', type=int, required=False, default=15,
                     help='Patience for early stopping.')
 
 parser.add_argument('--min-delta', type=float, required=False, default=0.005,
