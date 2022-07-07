@@ -32,6 +32,10 @@ from collections import Counter
 import pathlib
 
 
+def batch_mean(outputs, metric):
+    return torch.stack([torch.tensor(x[metric]) for x in outputs]).mean()
+
+
 if __name__ == '__main__':
     from pycil.utils.inc_net import DERNet
     from pycil.utils.data_manager import DataManager
@@ -193,30 +197,33 @@ class TeacherStudent(LightningModule):
         return x
 
     def training_step(self, batch, batch_idx):
-        soft_targets_loss, label_loss, loss, acc = self._step_helper(batch)
+        soft_targets_loss, label_loss, loss, acc, acc5 = self._step_helper(batch)
         return dict(
             loss_kl=soft_targets_loss,
             loss_label=label_loss,
             loss=loss,
-            training_acc=acc
+            train_acc=acc,
+            train_acc5=acc5
         )
 
     def validation_step(self, batch, batch_idx):
-        soft_targets_loss, label_loss, loss, acc = self._step_helper(batch)
+        soft_targets_loss, label_loss, loss, acc, acc5 = self._step_helper(batch)
         return dict(
             loss_kl=soft_targets_loss,
             loss_label=label_loss,
             loss=loss,
-            validation_acc=acc
+            val_acc=acc,
+            val_acc5=acc5
         )
 
     def test_step(self, batch, batch_idx) -> Optional[STEP_OUTPUT]:
-        soft_targets_loss, label_loss, loss, acc = self._step_helper(batch)
+        soft_targets_loss, label_loss, loss, acc, acc5 = self._step_helper(batch)
         return dict(
             loss_kl=soft_targets_loss,
             loss_label=label_loss,
             loss=loss,
-            test_acc=acc
+            test_acc=acc,
+            test_acc5=acc5
         )
 
     def _step_helper(self, batch):
@@ -235,26 +242,28 @@ class TeacherStudent(LightningModule):
         loss = self.soft_targets_weight * soft_targets_loss + self.label_loss_weight * label_loss
 
         # Accuracy
-        _, preds = torch.max(student_logits, dim=1)
-        n_correct = preds.eq(y.expand_as(preds)).cpu().sum()
-        acc = n_correct / y.size(dim=0)
+        y = y.unsqueeze(-1)
+        _, preds = torch.sort(student_logits, dim=1, descending=True)
 
-        return soft_targets_loss, label_loss, loss, acc
+        acc1 = ((preds[:, 0:1] == y).sum(dim=0) / y.shape[0]).item()
+        acc5 = ((preds[:, 0:5] == y).sum(dim=1).sum(dim=0) / y.shape[0]).item()
+
+        return soft_targets_loss, label_loss, loss, acc1, acc5
 
     def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
-        last = outputs[-1]
-        self.log("train_loss", last['loss'])
-        self.log("train_acc", last['training_acc'])
+        self.log("train_loss", batch_mean(outputs, 'loss'))
+        self.log("train_acc", batch_mean(outputs, 'train_acc'))
+        self.log("train_acc5", batch_mean(outputs, 'train_acc5'))
 
     def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
-        last = outputs[-1]
-        self.log("val_loss", last['loss'])
-        self.log("val_acc", last['validation_acc'])
+        self.log("val_loss", batch_mean(outputs, 'loss'))
+        self.log("val_acc", batch_mean(outputs, 'val_acc'))
+        self.log("val_acc5", batch_mean(outputs, 'val_acc5'))
 
     def test_epoch_end(self, outputs: Union[EPOCH_OUTPUT, List[EPOCH_OUTPUT]]) -> None:
-        last = outputs[-1]
-        self.log("test_loss", last['loss'])
-        self.log("test_acc", last['test_acc'])
+        self.log("test_loss", batch_mean(outputs, 'loss'))
+        self.log("test_acc", batch_mean(outputs, 'test_acc'))
+        self.log("test_acc5", batch_mean(outputs, 'test_acc5'))
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters())
