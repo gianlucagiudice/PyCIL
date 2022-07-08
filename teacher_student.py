@@ -61,7 +61,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch', type=int, required=False, default=256,
                         help='Batch size.')
 
-    parser.add_argument('--epochs', type=int, required=False, default=150,
+    parser.add_argument('--epochs', type=int, required=False, default=120,
                         help='Number of maximum training epochs.')
 
     parser.add_argument('--patience', type=int, required=False, default=30,
