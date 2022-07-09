@@ -343,6 +343,7 @@ def train(args):
     final_dict = {'args': args, 'arch': parsed_args.architecture, 'state_dict': model.state_dict()}
     dict_path = str(Path(args['checkpoint_path'] / Path(run_name))) + '.pt'
     torch.save(final_dict, dict_path)
+    '''
     # Attach dumped file to wandb run
     res = wandb.save(str(dict_path))
     assert res is not None
@@ -353,6 +354,8 @@ def train(args):
     wandb.log_artifact(artifact)
     # Artifact crated
     logging.info('Artifact created!')
+    '''
+
 
 
 def init_datamanager(args):
