@@ -9,9 +9,11 @@ from pathlib import Path
 #from config import SEED
 SEED = 830694
 
+'''
 from utils.inc_net import DERNet
 from utils.data_manager import DataManager
 from trainer import _set_random, print_args, init_logger
+'''
 
 import argparse
 import logging
@@ -42,11 +44,9 @@ def batch_mean(outputs, metric):
 
 
 if __name__ == '__main__':
-    '''
     from pycil.utils.inc_net import DERNet
     from pycil.utils.data_manager import DataManager
     from trainer import _set_random, print_args, init_logger
-    '''
 
     FILE_PATH = pathlib.Path(__file__).parent.resolve()
     PROJECT_ROOT = (FILE_PATH / '..').resolve()
